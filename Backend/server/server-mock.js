@@ -62,6 +62,15 @@ const mockUsers = [
     password: '12345678',
     role: 'Citizen',
     createdAt: new Date(),
+  },
+  {
+    _id: '65fb7bb360d8e20f381e5b88',
+    name: 'Admin Dharun',
+    email: 'dharun@admin.com',
+    phone: '9876543210',
+    password: '12345678',
+    role: 'Admin',
+    createdAt: new Date(),
   }
 ];
 
