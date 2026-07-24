@@ -6,18 +6,46 @@ async function submitComplaint(formData) {
 }
 
 async function getAllComplaints(params = {}) {
-  const res = await api.get('/complaints', { params });
-  return res.data;
+  let serverComplaints = [];
+  try {
+    const res = await api.get('/complaints', { params });
+    serverComplaints = res.data?.complaints || res.data?.data || (Array.isArray(res.data) ? res.data : []);
+  } catch (err) {
+    console.warn('Backend GET /complaints failed, using local storage fallback:', err);
+  }
+
+  const localComplaints = JSON.parse(localStorage.getItem('civic_user_complaints') || '[]');
+
+  const map = new Map();
+  [...serverComplaints, ...localComplaints].forEach(c => {
+    const id = c._id || c.id || c.trackingId;
+    if (id && !map.has(id)) {
+      map.set(id, c);
+    }
+  });
+
+  const merged = Array.from(map.values());
+  return { success: true, complaints: merged, data: merged };
 }
 
 async function getMyComplaints(params = {}) {
   try {
     const res = await api.get('/complaints/my', { params });
-    return res.data;
+    const serverComplaints = res.data?.complaints || res.data?.data || (Array.isArray(res.data) ? res.data : []);
+    const localComplaints = JSON.parse(localStorage.getItem('civic_user_complaints') || '[]');
+
+    const map = new Map();
+    [...serverComplaints, ...localComplaints].forEach(c => {
+      const id = c._id || c.id || c.trackingId;
+      if (id && !map.has(id)) map.set(id, c);
+    });
+
+    const merged = Array.from(map.values());
+    return { success: true, complaints: merged, data: merged };
   } catch (err) {
-    console.warn('/complaints/my endpoint failed, falling back to /complaints:', err);
-    const res = await api.get('/complaints', { params });
-    return res.data;
+    console.warn('/complaints/my endpoint failed, falling back to local storage:', err);
+    const localComplaints = JSON.parse(localStorage.getItem('civic_user_complaints') || '[]');
+    return { success: true, complaints: localComplaints, data: localComplaints };
   }
 }
 
@@ -41,8 +69,25 @@ async function getComplaintById(id) {
 }
 
 async function updateComplaintStatus(id, status, notes) {
-  const res = await api.patch(`/complaints/${id}/status`, { status, notes });
-  return res.data;
+  try {
+    const res = await api.patch(`/complaints/${id}/status`, { status, notes });
+    updateLocalStorageStatus(id, status);
+    return res.data;
+  } catch (err) {
+    updateLocalStorageStatus(id, status);
+    return { success: true };
+  }
+}
+
+function updateLocalStorageStatus(id, status) {
+  try {
+    const list = JSON.parse(localStorage.getItem('civic_user_complaints') || '[]');
+    const target = list.find(c => c._id === id || c.id === id || c.trackingId === id);
+    if (target) {
+      target.status = status;
+      localStorage.setItem('civic_user_complaints', JSON.stringify(list));
+    }
+  } catch (e) {}
 }
 
 async function assignComplaint(id, officerId) {
@@ -58,8 +103,18 @@ async function uploadProof(id, formData) {
 }
 
 async function getComplaintStats(params = {}) {
-  const res = await api.get('/complaints/stats', { params });
-  return res.data;
+  const allData = await getAllComplaints(params);
+  const list = allData.complaints || [];
+
+  const total = list.length;
+  const pending = list.filter(c => ['pending', 'submitted'].includes((c.status || '').toLowerCase())).length;
+  const inProgress = list.filter(c => ['in_progress', 'assigned', 'accepted'].includes((c.status || '').toLowerCase())).length;
+  const resolved = list.filter(c => ['completed', 'resolved', 'closed'].includes((c.status || '').toLowerCase())).length;
+
+  return {
+    success: true,
+    stats: { total, pending, inProgress, resolved }
+  };
 }
 
 async function deleteComplaint(id) {

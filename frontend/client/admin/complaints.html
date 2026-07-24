@@ -13,11 +13,11 @@
   <link rel="stylesheet" href="../css/animations.css">
   <link rel="stylesheet" href="../css/responsive.css">
   <style>
-    .dashboard-layout { display: flex; min-height: 100vh; }
-    .main-content { margin-left: var(--sidebar-width); flex: 1; }
+    .dashboard-layout { display: flex; min-height: 100vh; background-color: var(--bg-primary); }
+    .main-content { margin-left: var(--sidebar-width); flex: 1; min-width: 0; }
     .data-table { width: 100%; border-collapse: collapse; }
-    .data-table th { text-align: left; padding: 12px 16px; font-size: 0.8rem; color: var(--text-tertiary); font-weight: 600; border-bottom: 1px solid var(--border-subtle); }
-    .data-table td { padding: 14px 16px; font-size: 0.85rem; border-bottom: 1px solid var(--border-subtle); }
+    .data-table th { text-align: left; padding: 14px 16px; font-size: 0.8rem; color: var(--text-tertiary); font-weight: 700; border-bottom: 1px solid var(--border-subtle); text-transform: uppercase; letter-spacing: 0.05em; }
+    .data-table td { padding: 14px 16px; font-size: 0.85rem; border-bottom: 1px solid var(--border-subtle); vertical-align: middle; }
     .data-table tr:hover td { background: rgba(148,163,184,0.03); }
     @media (max-width: 768px) { .sidebar { transform: translateX(-100%); } .main-content { margin-left: 0; } .table-wrap { overflow-x: auto; } }
   </style>
@@ -27,24 +27,46 @@
     <div id="sidebarContainer"></div>
     <div class="main-content">
       <div id="topnavContainer"></div>
-      <div style="padding: 32px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
-          <h1 style="font-size: 1.5rem; font-weight: 700;">Complaints Management</h1>
-          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <input type="text" class="input" placeholder="Search complaints..." style="width: 200px; padding: 8px 12px;" id="searchInput">
-            <select class="input" style="width: auto; padding: 8px 12px;" id="filterDept"><option value="">All Departments</option><option>Roads & Highways</option><option>Waste Management</option><option>Water Supply</option><option>Street Lighting</option></select>
-            <select class="input" style="width: auto; padding: 8px 12px;" id="filterStatus"><option value="">All Status</option><option>submitted</option><option>under_review</option><option>assigned</option><option>in_progress</option><option>resolved</option></select>
-            <button class="btn btn-secondary"><span class="material-symbols-outlined">download</span> Export CSV</button>
+      <div style="padding: 32px; max-width: 1400px; margin: 0 auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+          <div>
+            <h1 style="font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em;">Complaints Management</h1>
+            <p style="color: var(--text-secondary); font-size: 0.88rem; margin-top: 2px;">Monitor, filter, assign, and update status for all municipal complaints.</p>
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+            <input type="text" class="input" placeholder="Search complaints..." style="width: 220px; padding: 10px 14px; font-size: 0.85rem;" id="searchInput" oninput="applyFilters()">
+            <select class="input" style="width: auto; padding: 10px 14px; font-size: 0.85rem;" id="filterDept" onchange="applyFilters()">
+              <option value="">All Departments</option>
+              <option value="roads">Roads & Highways</option>
+              <option value="waste">Solid Waste Management</option>
+              <option value="water">Water Supply & Drainage</option>
+              <option value="lighting">Street Lighting</option>
+            </select>
+            <select class="input" style="width: auto; padding: 10px 14px; font-size: 0.85rem;" id="filterStatus" onchange="applyFilters()">
+              <option value="">All Status</option>
+              <option value="submitted">Submitted / Pending</option>
+              <option value="in_progress">In Progress</option>
+              <option value="resolved">Resolved</option>
+            </select>
           </div>
         </div>
-        <div class="card" style="overflow: hidden;">
+
+        <div class="card" style="overflow: hidden; border: 1px solid var(--border-subtle);">
           <div class="table-wrap">
             <table class="data-table">
-              <thead><tr>
-                <th>ID</th><th>Issue</th><th>Category</th><th>Severity</th><th>Status</th><th>Department</th><th>Date</th><th>Actions</th>
-              </tr></thead>
+              <thead>
+                <tr>
+                  <th>Tracking ID</th>
+                  <th>Issue Details</th>
+                  <th>Category</th>
+                  <th>Severity</th>
+                  <th>Status</th>
+                  <th>Department</th>
+                  <th>Reported Date</th>
+                </tr>
+              </thead>
               <tbody id="complaintTableBody">
-                <tr><td colspan="8" style="text-align: center; padding: 40px; color: var(--text-tertiary);">Loading...</td></tr>
+                <tr><td colspan="7" style="text-align: center; padding: 40px; color: var(--text-tertiary);">Loading complaint records...</td></tr>
               </tbody>
             </table>
           </div>
@@ -59,39 +81,109 @@
   <script src="../js/services/complaint.service.js"></script>
   <script src="../js/utils/constants.js"></script>
   <script src="../js/components/sidebar.js"></script>
+  <script src="../js/components/modal.js"></script>
   <script src="../js/components/toast.js"></script>
   <script>
     if (!requireAuth()) { window.location.href = '/login.html'; }
+    let rawComplaints = [];
 
     async function loadComplaints() {
       const tbody = document.getElementById('complaintTableBody');
       try {
         const data = await getAllComplaints();
-        const complaints = data.complaints || data.data || data || [];
-        if (!complaints.length) {
-          tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: var(--text-tertiary);">No complaints found.</td></tr>';
-          return;
-        }
-        tbody.innerHTML = complaints.map(c => {
-          const sev = getSeverityConfig(c.severity);
-          const stat = getStatusConfig(c.status);
-          return `<tr>
-            <td class="mono" style="color: var(--text-tertiary);">${(c._id || c.id || '').substring(0, 8)}...</td>
-            <td style="font-weight: 500;">${c.title || 'Complaint'}</td>
-            <td><span class="badge" style="background: rgba(107,114,128,0.12); color: #6B7280;">${c.category || 'General'}</span></td>
-            <td><span class="badge" style="background: ${sev.color}20; color: ${sev.color};">${sev.label}</span></td>
-            <td><span class="badge" style="background: ${stat.color}20; color: ${stat.color};">${stat.label}</span></td>
-            <td style="color: var(--text-secondary);">${c.department || '--'}</td>
-            <td style="color: var(--text-tertiary); font-size: 0.8rem;">${formatDate(c.createdAt)}</td>
-            <td>
-              <button class="btn btn-ghost" style="padding: 4px 8px;" onclick="toast.info('Assign feature')"><span class="material-symbols-outlined" style="font-size: 18px;">assignment</span></button>
-              <button class="btn btn-ghost" style="padding: 4px 8px; color: var(--danger-red);" onclick="showConfirmDialog('Delete this complaint?', ()=>toast.success('Deleted'))"><span class="material-symbols-outlined" style="font-size: 18px;">delete</span></button>
-            </td>
-          </tr>`;
-        }).join('');
+        rawComplaints = data.complaints || data.data || (Array.isArray(data) ? data : []);
+        applyFilters();
       } catch (err) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: var(--text-tertiary);">Failed to load. Make sure backend is running.</td></tr>';
+        console.error('Error loading complaints:', err);
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: var(--danger-red);">Failed to load records. Please refresh.</td></tr>';
       }
+    }
+
+    function applyFilters() {
+      const tbody = document.getElementById('complaintTableBody');
+      const search = (document.getElementById('searchInput').value || '').toLowerCase();
+      const deptFilter = (document.getElementById('filterDept').value || '').toLowerCase();
+      const statusFilter = (document.getElementById('filterStatus').value || '').toLowerCase();
+
+      const filtered = rawComplaints.filter(c => {
+        const title = (c.title || c.description || '').toLowerCase();
+        const trackingId = (c._id || c.id || c.trackingId || '').toLowerCase();
+        const dept = (c.department || '').toLowerCase();
+        const status = (c.status || '').toLowerCase();
+
+        const matchSearch = !search || title.includes(search) || trackingId.includes(search);
+        const matchDept = !deptFilter || dept.includes(deptFilter);
+        const matchStatus = !statusFilter || status.includes(statusFilter);
+
+        return matchSearch && matchDept && matchStatus;
+      });
+
+      if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: var(--text-tertiary);">No matching complaints found.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(c => {
+        const id = c.trackingId || c._id || c.id || 'CIV-00000';
+        const displayId = id.length > 16 ? id.substring(0, 14) + '...' : id;
+        const sev = getSeverityConfig(c.severity);
+        const stat = getStatusConfig(c.status);
+        const repTag = (c.repetitionCount && c.repetitionCount > 1) ? `<span class="badge" style="background: rgba(245,158,11,0.15); color: var(--warning-amber); font-size: 0.72rem; margin-left: 6px;">🔥 ${c.repetitionCount} Reports</span>` : '';
+
+        return `<tr>
+          <td class="mono" style="font-weight: 600; color: var(--primary-blue);">${displayId}</td>
+          <td>
+            <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 2px;">${c.title || 'Civic Issue'}</div>
+            <div style="color: var(--text-tertiary); font-size: 0.78rem; display: flex; align-items: center; gap: 4px;">
+              <span class="material-symbols-outlined" style="font-size: 13px;">location_on</span>
+              ${c.address || c.location?.address || (typeof c.location === 'string' ? c.location : '') || 'Coordinates Pinned'}
+            </div>
+          </td>
+          <td><span class="badge" style="background: rgba(107,114,128,0.12); color: var(--text-secondary); font-size: 0.75rem;">${c.category || 'General'}</span></td>
+          <td><span class="badge" style="background: ${sev.color}15; color: ${sev.color}; font-weight: 600; font-size: 0.75rem;"><span class="material-symbols-outlined" style="font-size: 12px; margin-right: 3px;">${sev.icon}</span>${sev.label}</span></td>
+          <td>
+            <span class="badge" style="background: ${stat.color}15; color: ${stat.color}; font-weight: 600; font-size: 0.75rem;">
+              <span class="material-symbols-outlined" style="font-size: 12px; margin-right: 3px;">${stat.icon}</span>${stat.label}
+            </span>
+            ${repTag}
+          </td>
+          <td style="color: var(--text-secondary); font-size: 0.82rem;">${(c.department || 'General').replace(/_/g, ' ').toUpperCase()}</td>
+          <td style="color: var(--text-tertiary); font-size: 0.8rem;">${formatDate(c.createdAt)}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function updateStatusModal(id, currentStatus) {
+      renderModal({
+        title: `Update Status for Complaint #${id}`,
+        content: `
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div>
+              <label style="font-size: 0.82rem; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;">Select New Status</label>
+              <select id="newStatusSelect" class="input" style="width: 100%;">
+                <option value="submitted" ${currentStatus === 'submitted' ? 'selected' : ''}>Submitted (Pending Review)</option>
+                <option value="in_progress" ${currentStatus === 'in_progress' ? 'selected' : ''}>In Progress (Work Assigned)</option>
+                <option value="resolved" ${currentStatus === 'resolved' ? 'selected' : ''}>Resolved (Work Completed)</option>
+              </select>
+            </div>
+          </div>`,
+        confirmText: 'Save Status',
+        onConfirm: async (close) => {
+          const newStatus = document.getElementById('newStatusSelect').value;
+          await updateComplaintStatus(id, newStatus);
+          toast.success(`Complaint #${id} updated to ${newStatus.replace('_', ' ')}!`);
+          close();
+          loadComplaints();
+        }
+      });
+    }
+
+    function deleteAdminComplaint(id, title) {
+      showConfirmDialog(`Are you sure you want to delete complaint "${title}" (${id})?`, async () => {
+        await deleteComplaint(id);
+        toast.success(`Complaint ${id} deleted`);
+        loadComplaints();
+      });
     }
 
     document.addEventListener('DOMContentLoaded', () => {
