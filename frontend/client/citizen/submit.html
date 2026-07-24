@@ -22,18 +22,81 @@
     .step.active { background: var(--primary-blue); box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); }
     .step.completed { background: var(--success-green); }
 
-    .upload-zone {
-      border: 2px dashed var(--border-subtle);
+    .photo-options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .photo-option-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
-      padding: 40px 24px;
+      padding: 28px 20px;
       text-align: center;
       cursor: pointer;
-      transition: all 0.25s ease;
-      background: var(--bg-secondary);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
-    .upload-zone:hover, .upload-zone.dragover {
+    .photo-option-card:hover {
+      transform: translateY(-3px);
       border-color: var(--primary-blue);
-      background: rgba(59,130,246,0.06);
+      background: rgba(59, 130, 246, 0.05);
+      box-shadow: 0 10px 20px -8px rgba(0, 0, 0, 0.3);
+    }
+
+    .camera-container {
+      background: #0f172a;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      position: relative;
+      margin-bottom: 20px;
+      border: 1px solid var(--border-subtle);
+    }
+    .camera-video {
+      width: 100%;
+      max-height: 380px;
+      object-fit: cover;
+      display: block;
+      background: #000;
+    }
+    .camera-controls {
+      position: absolute;
+      bottom: 16px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      z-index: 10;
+      padding: 0 16px;
+    }
+    .shutter-btn {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 4px solid var(--primary-blue);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      transition: transform 0.15s ease;
+    }
+    .shutter-btn:active {
+      transform: scale(0.92);
+    }
+    .shutter-inner {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--primary-blue);
     }
 
     .description-box-wrapper {
@@ -101,11 +164,12 @@
     .ai-step.done { opacity: 1; color: var(--success-green); }
 
     #map { height: 260px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); }
-    .preview-img { max-height: 280px; border-radius: var(--radius-md); object-fit: contain; background: var(--bg-primary); }
+    .preview-img { max-height: 320px; border-radius: var(--radius-md); object-fit: contain; background: var(--bg-primary); }
 
-    @media (max-width: 768px) {
+    @media (max-width: 640px) {
       .sidebar { transform: translateX(-100%); }
       .main-content { margin-left: 0; }
+      .photo-options-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -120,7 +184,7 @@
         <!-- Header -->
         <div style="margin-bottom: 28px;">
           <h1 style="font-size: 1.75rem; font-weight: 800; letter-spacing: -0.02em;">Report a Civic Issue</h1>
-          <p style="color: var(--text-secondary); font-size: 0.95rem; margin-top: 4px;">Upload a photo and provide details. AI vision & NLP will process and route your complaint automatically.</p>
+          <p style="color: var(--text-secondary); font-size: 0.95rem; margin-top: 4px;">Capture a live photo or upload from device, and describe the issue for instant AI routing.</p>
         </div>
 
         <!-- Progress Steps -->
@@ -130,28 +194,63 @@
           <div class="step" id="step3"></div>
         </div>
 
-        <!-- STEP 1: Upload & Initial Description -->
+        <!-- STEP 1: Capture / Upload Photo & Description -->
         <div id="stepUpload" class="card" style="padding: 32px;">
           <h2 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
             <span class="material-symbols-outlined" style="color: var(--primary-blue);">photo_camera</span>
-            Step 1: Upload Photo & Describe Issue
+            Step 1: Capture / Upload Photo & Describe Issue
           </h2>
 
-          <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
-            <div style="width: 56px; height: 56px; border-radius: 16px; background: rgba(59,130,246,0.12); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px;">
-              <span class="material-symbols-outlined" style="font-size: 30px; color: var(--primary-blue);">add_a_photo</span>
+          <!-- Upload / Camera Option Cards -->
+          <div class="photo-options-grid" id="uploadOptionsContainer">
+            <div class="photo-option-card" onclick="startCamera()">
+              <div style="width: 52px; height: 52px; border-radius: 14px; background: rgba(59,130,246,0.12); display: flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+                <span class="material-symbols-outlined" style="font-size: 28px; color: var(--primary-blue);">photo_camera</span>
+              </div>
+              <h3 style="font-weight: 700; font-size: 1rem; margin-bottom: 4px; color: var(--text-primary);">Capture Live Photo</h3>
+              <p style="color: var(--text-tertiary); font-size: 0.82rem;">Use device camera to snap issue live</p>
             </div>
-            <p style="font-weight: 700; font-size: 1rem; margin-bottom: 4px;">Click to upload image or drag and drop</p>
-            <p style="color: var(--text-tertiary); font-size: 0.85rem;">Supports JPG, PNG, WEBP (up to 10MB)</p>
-            <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleFile(this.files[0])">
+
+            <div class="photo-option-card" onclick="document.getElementById('fileInput').click()">
+              <div style="width: 52px; height: 52px; border-radius: 14px; background: rgba(139,92,246,0.12); display: flex; align-items: center; justify-content: center; margin-bottom: 12px;">
+                <span class="material-symbols-outlined" style="font-size: 28px; color: var(--primary-purple);">folder_open</span>
+              </div>
+              <h3 style="font-weight: 700; font-size: 1rem; margin-bottom: 4px; color: var(--text-primary);">Choose from Device</h3>
+              <p style="color: var(--text-tertiary); font-size: 0.82rem;">Select image from gallery (JPG, PNG)</p>
+              <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleFile(this.files[0])">
+              <input type="file" id="cameraFileInput" accept="image/*" capture="environment" style="display: none;" onchange="handleFile(this.files[0])">
+            </div>
           </div>
 
-          <div id="imagePreview" style="display: none; margin-top: 16px;">
-            <img id="previewImg" class="preview-img" style="width: 100%;">
-            <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
-              <button class="btn btn-secondary" onclick="retakePhoto()" style="padding: 8px 16px;">
-                <span class="material-symbols-outlined" style="font-size: 18px;">refresh</span>
-                Change Photo
+          <!-- Live Camera Viewfinder -->
+          <div class="camera-container" id="cameraContainer" style="display: none;">
+            <video id="webcamVideo" class="camera-video" autoplay playsinline></video>
+            <div style="position: absolute; top: 12px; left: 16px; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); padding: 4px 12px; border-radius: 20px; color: #fff; font-size: 0.75rem; display: flex; align-items: center; gap: 6px;">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444; display: inline-block;"></span> Live Viewfinder
+            </div>
+            <div class="camera-controls">
+              <button class="btn btn-secondary" type="button" style="background: rgba(0,0,0,0.6); color: white; border: 1px solid rgba(255,255,255,0.2);" onclick="stopCamera()">
+                Cancel
+              </button>
+              <button class="shutter-btn" type="button" title="Take Snapshot" onclick="captureSnapshot()">
+                <div class="shutter-inner"></div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Image Preview -->
+          <div id="imagePreview" style="display: none; margin-bottom: 20px;">
+            <div style="position: relative; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-subtle);">
+              <img id="previewImg" class="preview-img" style="width: 100%;">
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+              <span style="font-size: 0.82rem; color: var(--success-green); display: flex; align-items: center; gap: 4px; font-weight: 600;">
+                <span class="material-symbols-outlined" style="font-size: 16px;">check_circle</span>
+                Photo Attached
+              </span>
+              <button class="btn btn-secondary" onclick="retakePhoto()" style="padding: 8px 16px; font-size: 0.85rem;">
+                <span class="material-symbols-outlined" style="font-size: 16px;">refresh</span>
+                Retake / Change Photo
               </button>
             </div>
           </div>
@@ -308,6 +407,7 @@
     let userLocation = null;
     let map = null;
     let marker = null;
+    let mediaStream = null;
 
     function updateCharCount(textarea) {
       document.getElementById('charCounter').textContent = `${textarea.value.length} / 500`;
@@ -324,6 +424,54 @@
       updateCharCount(desc);
     }
 
+    async function startCamera() {
+      const cameraContainer = document.getElementById('cameraContainer');
+      const video = document.getElementById('webcamVideo');
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
+        video.srcObject = mediaStream;
+        cameraContainer.style.display = 'block';
+        document.getElementById('uploadOptionsContainer').style.display = 'none';
+        document.getElementById('imagePreview').style.display = 'none';
+      } catch (err) {
+        console.warn('Direct webcam access failed, using native camera capture fallback:', err);
+        document.getElementById('cameraFileInput').click();
+      }
+    }
+
+    function stopCamera() {
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+        mediaStream = null;
+      }
+      document.getElementById('cameraContainer').style.display = 'none';
+      if (!selectedFile) {
+        document.getElementById('uploadOptionsContainer').style.display = 'grid';
+      }
+    }
+
+    function captureSnapshot() {
+      const video = document.getElementById('webcamVideo');
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob(blob => {
+        if (!blob) {
+          toast.error('Failed to capture image snapshot.');
+          return;
+        }
+        const capturedFile = new File([blob], `live_photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        handleFile(capturedFile);
+        stopCamera();
+        toast.success('Live photo captured!');
+      }, 'image/jpeg', 0.92);
+    }
+
     function handleFile(file) {
       if (!file) return;
       selectedFile = file;
@@ -331,7 +479,8 @@
       reader.onload = e => {
         document.getElementById('previewImg').src = e.target.result;
         document.getElementById('imagePreview').style.display = 'block';
-        document.getElementById('uploadZone').style.display = 'none';
+        document.getElementById('uploadOptionsContainer').style.display = 'none';
+        document.getElementById('cameraContainer').style.display = 'none';
         validateStep1();
       };
       reader.readAsDataURL(file);
@@ -343,15 +492,13 @@
       document.getElementById('analyzeBtn').disabled = !(hasPhoto || hasDesc);
     }
 
-    document.getElementById('uploadZone').addEventListener('dragover', e => { e.preventDefault(); e.currentTarget.classList.add('dragover'); });
-    document.getElementById('uploadZone').addEventListener('dragleave', e => { e.currentTarget.classList.remove('dragover'); });
-    document.getElementById('uploadZone').addEventListener('drop', e => { e.preventDefault(); e.currentTarget.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
-
     function retakePhoto() {
+      stopCamera();
       selectedFile = null;
       document.getElementById('imagePreview').style.display = 'none';
-      document.getElementById('uploadZone').style.display = 'block';
+      document.getElementById('uploadOptionsContainer').style.display = 'grid';
       document.getElementById('fileInput').value = '';
+      document.getElementById('cameraFileInput').value = '';
       validateStep1();
     }
 
@@ -370,10 +517,11 @@
     async function startAnalysis() {
       const initialDesc = document.getElementById('initialDesc').value.trim();
       if (!selectedFile && !initialDesc) {
-        toast.error('Please upload a photo or type a description first');
+        toast.error('Please capture a photo or type a description first');
         return;
       }
 
+      stopCamera();
       updateStep(2);
       document.querySelector('.ai-loader').style.display = 'block';
       document.getElementById('aiResult').style.display = 'none';
