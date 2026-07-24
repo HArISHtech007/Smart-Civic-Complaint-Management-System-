@@ -534,16 +534,22 @@
         document.getElementById('complaintTitle').value = result.title || `Report: ${result.category || 'Civic Issue'}`;
         document.getElementById('complaintDesc').value = initialDesc ? `${initialDesc}\n\n[AI Summary]: ${result.description || ''}` : (result.description || '');
       } catch (err) {
-        aiResultData = { category: 'Pothole', department: 'Roads & Highways', severity: 'Medium', confidence: 0.90, description: initialDesc || 'Pothole issue on roadway.' };
-        document.getElementById('aiCategory').textContent = 'Pothole';
-        document.getElementById('aiDepartment').textContent = 'Roads & Highways';
-        document.getElementById('aiSeverity').textContent = 'Medium';
-        document.getElementById('aiConfidence').textContent = '90.0%';
-        document.getElementById('aiDescription').textContent = initialDesc || 'Civic complaint details logged.';
+        console.warn('AI service fallback triggered:', err);
+        const fallback = (typeof classifyIssueSmart === 'function') ? 
+          classifyIssueSmart(selectedFile, initialDesc) : 
+          { category: 'Civic Concern', department: 'Public Works', severity: 'Medium', confidence: 0.90, description: initialDesc || 'Logged civic issue.' };
+
+        aiResultData = fallback;
+        document.getElementById('aiCategory').textContent = fallback.category;
+        document.getElementById('aiDepartment').textContent = fallback.department;
+        document.getElementById('aiSeverity').textContent = fallback.severity;
+        document.getElementById('aiConfidence').textContent = `${(fallback.confidence * 100).toFixed(1)}%`;
+        document.getElementById('aiDescription').textContent = fallback.description;
+
         document.querySelector('.ai-loader').style.display = 'none';
         document.getElementById('aiResult').style.display = 'block';
-        document.getElementById('complaintTitle').value = initialDesc ? `Report: ${initialDesc.substring(0, 30)}...` : 'Report: Pothole';
-        document.getElementById('complaintDesc').value = initialDesc || 'Pothole issue on roadway.';
+        document.getElementById('complaintTitle').value = fallback.title || `Report: ${fallback.category}`;
+        document.getElementById('complaintDesc').value = initialDesc ? `${initialDesc}\n\n[AI Summary]: ${fallback.description}` : fallback.description;
       }
     }
 

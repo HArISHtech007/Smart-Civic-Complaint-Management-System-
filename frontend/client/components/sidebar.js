@@ -5,8 +5,7 @@ function renderSidebar(activePage) {
       { icon: 'dashboard', label: 'Dashboard', href: '/citizen/dashboard.html', id: 'dashboard' },
       { icon: 'add_circle', label: 'Report Issue', href: '/citizen/submit.html', id: 'submit' },
       { icon: 'list_alt', label: 'My Complaints', href: '/citizen/track.html', id: 'track' },
-      { icon: 'notifications', label: 'Notifications', href: '/citizen/notifications.html', id: 'notifications' },
-      { icon: 'person', label: 'Profile', href: '/citizen/profile.html', id: 'profile' }
+      { icon: 'notifications', label: 'Notifications', href: '/citizen/notifications.html', id: 'notifications' }
     ],
     officer: [
       { icon: 'dashboard', label: 'Dashboard', href: '/officer/dashboard.html', id: 'dashboard' },
