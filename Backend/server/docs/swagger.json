@@ -1,0 +1,149 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Smart Civic Complaint Management System API",
+    "version": "1.0.0",
+    "description": "Production-ready Node.js REST API equipped with automated YOLOv8 image processing, NLP text routing, role-based dashboards, and notification systems."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000/api",
+      "description": "Local mock/development server"
+    }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "summary": "Register a new user account",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email", "phone", "password", "role"],
+                "properties": {
+                  "name": { "type": "string" },
+                  "email": { "type": "string", "format": "email" },
+                  "phone": { "type": "string" },
+                  "password": { "type": "string", "minLength": 6 },
+                  "role": { "type": "string", "enum": ["Citizen", "Officer", "HeadOfficer", "Admin"] },
+                  "department": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "User created successfully" },
+          "400": { "description": "Validation or duplicate key error" }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Authenticate user credentials",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Logged in successfully, cookie/token returned" },
+          "401": { "description": "Invalid credentials" }
+        }
+      }
+    },
+    "/complaints": {
+      "post": {
+        "summary": "Submit a civic complaint",
+        "tags": ["Complaints"],
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "description", "department"],
+                "properties": {
+                  "title": { "type": "string" },
+                  "description": { "type": "string" },
+                  "department": { "type": "string" },
+                  "priority": { "type": "string", "enum": ["Low", "Medium", "High"] },
+                  "latitude": { "type": "number" },
+                  "longitude": { "type": "number" },
+                  "address": { "type": "string" },
+                  "beforeImage": { "type": "string", "format": "binary" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Complaint registered successfully" }
+        }
+      },
+      "get": {
+        "summary": "Retrieve complaints (paginated, filtered, searched)",
+        "tags": ["Complaints"],
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "priority", "in": "query", "schema": { "type": "string" } },
+          { "name": "sort", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Complaints retrieved successfully" }
+        }
+      }
+    },
+    "/dashboard/admin": {
+      "get": {
+        "summary": "Retrieve Global Admin Analytics",
+        "tags": ["Dashboard"],
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "System analytics compiled successfully" }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "summary": "Fetch user alerts",
+        "tags": ["Notifications"],
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "read", "in": "query", "schema": { "type": "boolean" } }
+        ],
+        "responses": {
+          "200": { "description": "Alert list successfully retrieved" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

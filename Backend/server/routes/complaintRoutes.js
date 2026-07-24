@@ -9,7 +9,7 @@ const {
 } = require('../controllers/complaintController');
 
 const { protect, authorize } = require('../middleware/authMiddleware');
-const upload = require('../middleware/multer');
+const upload = require('../middleware/uploadMiddleware');
 const {
   validateCreateComplaint,
   validateUpdateComplaint,

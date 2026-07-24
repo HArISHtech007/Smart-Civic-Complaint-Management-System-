@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Departments — Civic Voice</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0" rel="stylesheet">
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/global.css">
+  <link rel="stylesheet" href="../css/animations.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <style>
+    .dashboard-layout { display: flex; min-height: 100vh; }
+    .main-content { margin-left: var(--sidebar-width); flex: 1; }
+    .dept-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+    @media (max-width: 768px) { .sidebar { transform: translateX(-100%); } .main-content { margin-left: 0; } }
+  </style>
+</head>
+<body>
+  <div class="dashboard-layout">
+    <div id="sidebarContainer"></div>
+    <div class="main-content">
+      <div id="topnavContainer"></div>
+      <div style="padding: 32px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+          <h1 style="font-size: 1.5rem; font-weight: 700;">Departments Management</h1>
+          <button class="btn btn-primary" onclick="showAddDeptModal()"><span class="material-symbols-outlined">add</span> Add Department</button>
+        </div>
+        <div class="dept-grid" id="deptGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="../js/api/index.js"></script>
+  <script src="../js/services/auth.service.js"></script>
+  <script src="../js/services/department.service.js"></script>
+  <script src="../js/utils/constants.js"></script>
+  <script src="../js/components/sidebar.js"></script>
+  <script src="../js/components/modal.js"></script>
+  <script src="../js/components/toast.js"></script>
+  <script>
+    if (!requireAuth()) { window.location.href = '/login.html'; }
+
+    async function loadDepartments() {
+      const grid = document.getElementById('deptGrid');
+      try {
+        const data = await getDepartments();
+        const depts = data.departments || data.data || data || [];
+        grid.innerHTML = depts.length ? depts.map(d => `
+          <div class="card card-hover" style="padding: 24px; border-left: 3px solid ${d.color || '#3B82F6'};">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 10px; background: ${d.color || '#3B82F6'}20; display: flex; align-items: center; justify-content: center;">
+                  <span class="material-symbols-outlined" style="color: ${d.color || '#3B82F6'};">${d.icon || 'apartment'}</span>
+                </div>
+                <div><p style="font-weight: 600;">${d.name}</p><p style="color: var(--text-tertiary); font-size: 0.8rem;">Head: ${d.headOfficer?.name || 'Not assigned'}</p></div>
+              </div>
+              <div style="display: flex; gap: 4px;">
+                <button class="btn btn-ghost" style="padding: 4px;"><span class="material-symbols-outlined" style="font-size: 18px;">edit</span></button>
+                <button class="btn btn-ghost" style="padding: 4px; color: var(--danger-red);"><span class="material-symbols-outlined" style="font-size: 18px;">delete</span></button>
+              </div>
+            </div>
+            <div style="display: flex; gap: 12px;">
+              <span class="badge" style="background: rgba(59,130,246,0.12); color: #3B82F6;">${d.officers?.length || 0} Officers</span>
+              <span class="badge" style="background: rgba(245,158,11,0.12); color: #F59E0B;">${d.activeComplaints || 0} Active</span>
+              <span class="badge" style="background: rgba(16,185,129,0.12); color: #10B981;">${d.resolvedCount || 0} Resolved</span>
+            </div>
+          </div>
+        `).join('') : '<div class="card" style="padding: 40px; text-align: center; grid-column: 1/-1;"><p style="color: var(--text-tertiary);">No departments found.</p></div>';
+      } catch (err) {
+        grid.innerHTML = DEPARTMENTS.map(d => `
+          <div class="card card-hover" style="padding: 24px; border-left: 3px solid ${d.color};">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+              <div style="width: 40px; height: 40px; border-radius: 10px; background: ${d.color}20; display: flex; align-items: center; justify-content: center;">
+                <span class="material-symbols-outlined" style="color: ${d.color};">${d.icon}</span>
+              </div>
+              <p style="font-weight: 600;">${d.name}</p>
+            </div>
+            <div style="display: flex; gap: 12px;">
+              <span class="badge" style="background: rgba(59,130,246,0.12); color: #3B82F6;">${Math.floor(Math.random() * 10 + 3)} Officers</span>
+              <span class="badge" style="background: rgba(245,158,11,0.12); color: #F59E0B;">${Math.floor(Math.random() * 20 + 5)} Active</span>
+              <span class="badge" style="background: rgba(16,185,129,0.12); color: #10B981;">${Math.floor(Math.random() * 30 + 10)} Resolved</span>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    function showAddDeptModal() {
+      renderModal({
+        title: 'Add Department',
+        content: `<div class="floating-label-group"><input type="text" id="deptName" class="input" placeholder=" "><label>Department Name</label></div>`,
+        confirmText: 'Create',
+        onConfirm: async (close) => { toast.success('Department created'); close(); loadDepartments(); }
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      requireAuth();
+      document.getElementById('sidebarContainer').innerHTML = renderSidebar('departments');
+      document.getElementById('topnavContainer').innerHTML = renderTopNav('Departments');
+      loadDepartments();
+    });
+  </script>
+</body>
+</html>

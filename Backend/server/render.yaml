@@ -1,0 +1,25 @@
+services:
+  # CivicSmart Backend API
+  - type: web
+    name: civicsmart-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRE
+        value: 30d
+      - key: CLIENT_URL
+        value: https://civicsmart-portal.onrender.com
+      - key: YOLO_API_URL
+        sync: false
+      - key: NLP_API_URL
+        sync: false

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics — Civic Voice</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.min.css">
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/global.css">
+  <link rel="stylesheet" href="../css/animations.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <style>
+    .dashboard-layout { display: flex; min-height: 100vh; }
+    .main-content { margin-left: var(--sidebar-width); flex: 1; }
+    .chart-card { height: 300px; }
+    .chart-card canvas { max-height: 250px; }
+    @media (max-width: 768px) { .sidebar { transform: translateX(-100%); } .main-content { margin-left: 0; } }
+  </style>
+</head>
+<body>
+  <div class="dashboard-layout">
+    <div id="sidebarContainer"></div>
+    <div class="main-content">
+      <div id="topnavContainer"></div>
+      <div style="padding: 32px;">
+        <h1 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 32px;">Analytics</h1>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px;">
+          <div class="card chart-card" style="padding: 24px;">
+            <h3 style="font-weight: 600; margin-bottom: 16px;">Complaints by Category</h3>
+            <canvas id="categoryChart"></canvas>
+          </div>
+          <div class="card chart-card" style="padding: 24px;">
+            <h3 style="font-weight: 600; margin-bottom: 16px;">Complaints by Severity</h3>
+            <canvas id="severityChart"></canvas>
+          </div>
+          <div class="card chart-card" style="padding: 24px;">
+            <h3 style="font-weight: 600; margin-bottom: 16px;">Resolution Time Trend</h3>
+            <canvas id="trendChart"></canvas>
+          </div>
+          <div class="card chart-card" style="padding: 24px;">
+            <h3 style="font-weight: 600; margin-bottom: 16px;">Department Performance</h3>
+            <canvas id="deptPerfChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="../js/api/index.js"></script>
+  <script src="../js/services/auth.service.js"></script>
+  <script src="../js/components/sidebar.js"></script>
+  <script>
+    if (!requireAuth()) { window.location.href = '/login.html'; }
+    document.addEventListener('DOMContentLoaded', () => {
+      requireAuth();
+      document.getElementById('sidebarContainer').innerHTML = renderSidebar('analytics');
+      document.getElementById('topnavContainer').innerHTML = renderTopNav('Analytics');
+      new Chart(document.getElementById('categoryChart'), {
+        type: 'bar',
+        data: {
+          labels: ['Potholes', 'Garbage', 'Water', 'Lighting', 'Drainage', 'Trees'],
+          datasets: [{ label: 'Complaints', data: [45, 38, 25, 20, 15, 8], backgroundColor: ['#3B82F6','#10B981','#06B6D4','#F59E0B','#8B5CF6','#EC4899'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+          scales: { x: { ticks: { color: '#64748B' }, grid: { color: 'rgba(148,163,184,0.1)' } },
+                    y: { ticks: { color: '#64748B' }, grid: { color: 'rgba(148,163,184,0.1)' } } } }
+      });
+      new Chart(document.getElementById('severityChart'), {
+        type: 'doughnut',
+        data: { labels: ['Critical', 'High', 'Medium', 'Low'], datasets: [{ data: [12, 25, 40, 23], backgroundColor: ['#EF4444','#F59E0B','#3B82F6','#10B981'] }] },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { color: '#94A3B8' } } } }
+      });
+      new Chart(document.getElementById('trendChart'), {
+        type: 'line',
+        data: {
+          labels: ['Jan','Feb','Mar','Apr','May','Jun'],
+          datasets: [{ label: 'Avg Hours', data: [72, 65, 58, 52, 48, 42], borderColor: '#8B5CF6', backgroundColor: 'rgba(139,92,246,0.1)', fill: true, tension: 0.4 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#94A3B8' } } },
+          scales: { x: { ticks: { color: '#64748B' }, grid: { color: 'rgba(148,163,184,0.1)' } },
+                    y: { ticks: { color: '#64748B' }, grid: { color: 'rgba(148,163,184,0.1)' } } } }
+      });
+      new Chart(document.getElementById('deptPerfChart'), {
+        type: 'horizontalBar',
+        data: {
+          labels: ['Roads', 'Waste', 'Water', 'Lighting', 'Planning', 'Parks'],
+          datasets: [{ label: 'Resolution Rate %', data: [85, 78, 72, 68, 65, 90], backgroundColor: ['#3B82F6','#10B981','#06B6D4','#F59E0B','#8B5CF6','#EC4899'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } },
+          scales: { x: { ticks: { color: '#64748B' }, grid: { color: 'rgba(148,163,184,0.1)' } },
+                    y: { ticks: { color: '#64748B' }, grid: { display: false } } } }
+      });
+    });
+  </script>
+</body>
+</html>

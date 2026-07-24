@@ -2,6 +2,7 @@ const complaintService = require('../services/complaintService');
 const asyncHandler = require('../utils/asyncHandler');
 const User = require('../models/userModel');
 const aiService = require('../services/aiService');
+const { sendSuccess } = require('../utils/responseFormatter');
 
 // Helper to extract uploaded file path
 const getUploadedFilePath = (req, fieldName) => {
@@ -62,11 +63,7 @@ const createComplaint = asyncHandler(async (req, res) => {
 
   const complaint = await complaintService.createComplaint(complaintData);
 
-  res.status(201).json({
-    success: true,
-    message: 'Complaint created successfully',
-    data: complaint,
-  });
+  return sendSuccess(res, complaint, 201, 'Complaint created successfully');
 });
 
 // @desc    Get all complaints (Citizen gets own, Admin/Officer gets all)
@@ -90,13 +87,9 @@ const getComplaints = asyncHandler(async (req, res) => {
     if (assignedOfficer) filter.assignedOfficer = assignedOfficer;
   }
 
-  const complaints = await complaintService.getComplaints(filter, req.query);
+  const { complaints, pagination } = await complaintService.getComplaints(filter, req.query);
 
-  res.status(200).json({
-    success: true,
-    count: complaints.length,
-    data: complaints,
-  });
+  return sendSuccess(res, complaints, 200, 'Complaints retrieved successfully', pagination);
 });
 
 // @desc    Get single complaint by ID

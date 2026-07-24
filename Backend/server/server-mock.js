@@ -1,4 +1,8 @@
 /* Backend Express Server with Mock Mongoose DB (Runs on port 5000) */
+const path = require('path');
+const dotenv = require('dotenv');
+dotenv.config({ path: path.join(__dirname, '.env') });
+
 const mongoose = require('mongoose');
 
 // 1) Mock Mongoose connection
@@ -48,6 +52,15 @@ const mockUsers = [
     password: 'password123',
     role: 'HeadOfficer',
     department: 'Sanitation',
+    createdAt: new Date(),
+  },
+  {
+    _id: '65fb7bb360d8e20f381e5b89',
+    name: 'Dharun',
+    email: 'dharun6@civic.com',
+    phone: '9876543299',
+    password: '12345678',
+    role: 'Citizen',
     createdAt: new Date(),
   }
 ];
@@ -136,12 +149,31 @@ Complaint.create = async (complaintData) => {
 };
 
 Complaint.find = (filter) => {
+  let skipVal = 0;
+  let limitVal = null;
+
   const chain = {
-    results: [],
     populate: function() { return this; },
     sort: function() { return this; },
+    skip: function(val) {
+      skipVal = val;
+      return this;
+    },
+    limit: function(val) {
+      limitVal = val;
+      return this;
+    },
     then: function(resolve) {
       let filtered = [...mockComplaints];
+
+      // Handle text search filter
+      if (filter.$text && filter.$text.$search) {
+        const term = filter.$text.$search.toLowerCase();
+        filtered = filtered.filter(c => 
+          c.title.toLowerCase().includes(term) || 
+          c.description.toLowerCase().includes(term)
+        );
+      }
       
       if (filter.citizen) {
         filtered = filtered.filter(c => {
@@ -165,7 +197,19 @@ Complaint.find = (filter) => {
         filtered = filtered.filter(c => c.department === filter.department);
       }
 
-      resolve(filtered.map(populateDoc));
+      if (filter.priority) {
+        filtered = filtered.filter(c => c.priority === filter.priority);
+      }
+
+      let paginated = filtered;
+      if (skipVal) {
+        paginated = paginated.slice(skipVal);
+      }
+      if (limitVal !== null) {
+        paginated = paginated.slice(0, limitVal);
+      }
+
+      resolve(paginated.map(populateDoc));
     }
   };
   return chain;

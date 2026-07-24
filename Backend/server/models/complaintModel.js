@@ -80,6 +80,14 @@ const complaintSchema = new mongoose.Schema(
   }
 );
 
+// Create compound and single field indexes for optimized query performance
+complaintSchema.index({ citizen: 1 });
+complaintSchema.index({ assignedOfficer: 1 });
+complaintSchema.index({ department: 1 });
+complaintSchema.index({ status: 1 });
+complaintSchema.index({ priority: 1 });
+complaintSchema.index({ title: 'text', description: 'text' }); // Text search index
+
 const Complaint = mongoose.model('Complaint', complaintSchema);
 
 module.exports = Complaint;

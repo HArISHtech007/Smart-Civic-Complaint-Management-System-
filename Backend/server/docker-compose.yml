@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: civicsmart_mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      # Map the data storage to database/mongodb/data relative to the workspace root
+      - ../../database/mongodb/data:/data/db
+    networks:
+      - civicsmart_network
+
+  backend-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: civicsmart_backend
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - MONGO_URI=mongodb://mongodb:27017/smart_civic_complaints
+      - JWT_SECRET=my_secure_jwt_secret_key_987654321_civic_complaint
+      - JWT_EXPIRE=30d
+      - CLIENT_URL=http://localhost:3001
+      - YOLO_API_URL=http://localhost:8000/predict/image
+      - NLP_API_URL=http://localhost:8000/predict/text
+    depends_on:
+      - mongodb
+    networks:
+      - civicsmart_network
+
+networks:
+  civicsmart_network:
+    driver: bridge

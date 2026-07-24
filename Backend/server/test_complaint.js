@@ -136,10 +136,20 @@ Complaint.create = async (complaintData) => {
 };
 
 Complaint.find = (filter) => {
+  let skipVal = 0;
+  let limitVal = null;
+
   const chain = {
-    results: null,
     populate: function() { return this; },
     sort: function() { return this; },
+    skip: function(val) {
+      skipVal = val;
+      return this;
+    },
+    limit: function(val) {
+      limitVal = val;
+      return this;
+    },
     then: function(resolve) {
       let filtered = [...mockComplaints];
       if (filter.citizen) {
@@ -157,10 +167,39 @@ Complaint.find = (filter) => {
       if (filter.assignedOfficer) {
         filtered = filtered.filter(c => c.assignedOfficer === filter.assignedOfficer.toString());
       }
-      resolve(filtered.map(populateDoc));
+
+      let paginated = filtered;
+      if (skipVal) {
+        paginated = paginated.slice(skipVal);
+      }
+      if (limitVal !== null) {
+        paginated = paginated.slice(0, limitVal);
+      }
+
+      resolve(paginated.map(populateDoc));
     }
   };
   return chain;
+};
+
+Complaint.countDocuments = async (filter = {}) => {
+  let filtered = [...mockComplaints];
+  if (filter.citizen) {
+    filtered = filtered.filter(c => c.citizen === filter.citizen.toString());
+  }
+  if (filter.status) {
+    filtered = filtered.filter(c => c.status === filter.status);
+  }
+  if (filter.department) {
+    filtered = filtered.filter(c => c.department === filter.department);
+  }
+  if (filter.priority) {
+    filtered = filtered.filter(c => c.priority === filter.priority);
+  }
+  if (filter.assignedOfficer) {
+    filtered = filtered.filter(c => c.assignedOfficer === filter.assignedOfficer.toString());
+  }
+  return filtered.length;
 };
 
 Complaint.findById = (id) => {

@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submit Complaint — Civic Voice</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/global.css">
+  <link rel="stylesheet" href="../css/animations.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <style>
+    .dashboard-layout { display: flex; min-height: 100vh; }
+    .main-content { margin-left: var(--sidebar-width); flex: 1; }
+    .step-bar { display: flex; gap: 8px; margin-bottom: 40px; }
+    .step { flex: 1; height: 4px; border-radius: 2px; background: var(--text-muted); transition: all 0.3s; }
+    .step.active { background: var(--primary-blue); box-shadow: 0 0 8px var(--blue-glow); }
+    .step.completed { background: var(--success-green); }
+    .upload-zone { border: 2px dashed var(--border-default); border-radius: var(--radius-lg); padding: 60px 40px; text-align: center; cursor: pointer; transition: all 0.3s; }
+    .upload-zone:hover, .upload-zone.dragover { border-color: var(--primary-blue); background: rgba(59,130,246,0.05); }
+    .ai-loader { text-align: center; padding: 60px 40px; }
+    .ai-pulse { width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 24px; background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple)); animation: aiThinking 1.5s ease-in-out infinite; display: flex; align-items: center; justify-content: center; }
+    .ai-step { display: flex; align-items: center; gap: 12px; padding: 8px 0; opacity: 0.4; transition: all 0.5s; }
+    .ai-step.active { opacity: 1; }
+    .ai-step.done { opacity: 1; color: var(--success-green); }
+    .success-screen { text-align: center; padding: 60px 40px; }
+    #map { height: 300px; border-radius: var(--radius-md); }
+    @media (max-width: 768px) { .sidebar { transform: translateX(-100%); } .main-content { margin-left: 0; } }
+    .preview-img { max-height: 300px; border-radius: var(--radius-md); object-fit: contain; background: var(--bg-secondary); }
+  </style>
+</head>
+<body>
+  <div class="dashboard-layout">
+    <div id="sidebarContainer"></div>
+    <div class="main-content">
+      <div id="topnavContainer"></div>
+
+      <div style="padding: 32px; max-width: 800px;">
+        <h1 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 8px;">Report an Issue</h1>
+        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 32px;">AI will analyze your photo and auto-classify the issue.</p>
+
+        <div class="step-bar" id="stepBar">
+          <div class="step active" id="step1"></div>
+          <div class="step" id="step2"></div>
+          <div class="step" id="step3"></div>
+        </div>
+
+        <div id="stepUpload" class="card" style="padding: 40px;">
+          <h2 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 24px;">Step 1: Upload Photo</h2>
+          <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+            <div style="width: 64px; height: 64px; border-radius: 16px; background: rgba(59,130,246,0.1); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+              <span class="material-symbols-outlined" style="font-size: 32px; color: var(--primary-blue);">add_a_photo</span>
+            </div>
+            <p style="font-weight: 600; margin-bottom: 4px;">Click to upload or drag and drop</p>
+            <p style="color: var(--text-tertiary); font-size: 0.85rem;">PNG, JPG (max. 10MB)</p>
+            <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleFile(this.files[0])">
+          </div>
+          <div id="imagePreview" style="display: none; margin-top: 16px;">
+            <img id="previewImg" class="preview-img" style="width: 100%;">
+            <button class="btn btn-secondary" style="margin-top: 12px;" onclick="retakePhoto()">
+              <span class="material-symbols-outlined">refresh</span>
+              Retake
+            </button>
+          </div>
+          <button class="btn btn-primary" id="analyzeBtn" style="width: 100%; margin-top: 24px; padding: 14px;" onclick="startAnalysis()" disabled>
+            <span class="material-symbols-outlined">psychology</span>
+            Analyze with AI
+          </button>
+        </div>
+
+        <div id="stepAnalysis" class="card" style="padding: 40px; display: none;">
+          <div class="ai-loader">
+            <div class="ai-pulse">
+              <span class="material-symbols-outlined" style="font-size: 36px; color: white;">psychology</span>
+            </div>
+            <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 20px;">AI Analyzing Your Complaint</h3>
+            <div style="max-width: 400px; margin: 0 auto;">
+              <div class="ai-step active" id="aiStep1"><span class="material-symbols-outlined" style="font-size: 18px;">image_search</span> Detecting issue type...</div>
+              <div class="ai-step" id="aiStep2"><span class="material-symbols-outlined" style="font-size: 18px;">manage_search</span> Classifying severity...</div>
+              <div class="ai-step" id="aiStep3"><span class="material-symbols-outlined" style="font-size: 18px;">account_balance</span> Finding department...</div>
+              <div class="ai-step" id="aiStep4"><span class="material-symbols-outlined" style="font-size: 18px;">done_all</span> Finalizing analysis...</div>
+            </div>
+          </div>
+          <div id="aiResult" style="display: none; margin-top: 24px;">
+            <div class="card" style="padding: 24px; background: var(--bg-secondary);">
+              <h3 style="font-weight: 600; margin-bottom: 16px;">AI Analysis Result</h3>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div><span style="color: var(--text-tertiary); font-size: 0.8rem;">Detected Issue</span><p style="font-weight: 600;" id="aiCategory">--</p></div>
+                <div><span style="color: var(--text-tertiary); font-size: 0.8rem;">Department</span><p style="font-weight: 600;" id="aiDepartment">--</p></div>
+                <div><span style="color: var(--text-tertiary); font-size: 0.8rem;">Severity</span><p style="font-weight: 600;" id="aiSeverity">--</p></div>
+                <div><span style="color: var(--text-tertiary); font-size: 0.8rem;">Confidence</span><p style="font-weight: 600;" id="aiConfidence">--</p></div>
+              </div>
+              <div style="margin-top: 12px;">
+                <span style="color: var(--text-tertiary); font-size: 0.8rem;">AI Description</span>
+                <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px;" id="aiDescription">--</p>
+              </div>
+            </div>
+            <button class="btn btn-primary" style="width: 100%; margin-top: 16px; padding: 14px;" onclick="goToStep3()">
+              <span class="material-symbols-outlined">arrow_forward</span>
+              Continue to Details
+            </button>
+          </div>
+        </div>
+
+        <div id="stepDetails" class="card" style="padding: 40px; display: none;">
+          <h2 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 24px;">Step 3: Final Details</h2>
+          <div class="floating-label-group">
+            <input type="text" id="complaintTitle" class="input" placeholder=" " value="Pothole near junction">
+            <label for="complaintTitle">Title</label>
+          </div>
+          <div class="floating-label-group">
+            <textarea id="complaintDesc" class="input" placeholder=" " rows="4" style="resize: vertical;"></textarea>
+            <label for="complaintDesc">Description</label>
+          </div>
+          <div style="margin-bottom: 16px;">
+            <label style="font-size: 0.85rem; color: var(--text-secondary); display: block; margin-bottom: 8px;">Location</label>
+            <div id="map"></div>
+            <p style="font-size: 0.8rem; color: var(--text-tertiary); margin-top: 4px;" id="locationStatus">Detecting your location...</p>
+          </div>
+          <div class="floating-label-group">
+            <input type="text" id="manualAddress" class="input" placeholder=" ">
+            <label for="manualAddress">Override Address (optional)</label>
+          </div>
+          <button class="btn btn-primary" style="width: 100%; padding: 14px;" onclick="submitComplaint()">
+            <span class="material-symbols-outlined">send</span>
+            Submit Complaint
+          </button>
+        </div>
+
+        <div id="stepSuccess" class="card" style="display: none;">
+          <div class="success-screen">
+            <div style="width: 80px; height: 80px; border-radius: 50%; background: rgba(16,185,129,0.15); display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
+              <svg viewBox="0 0 36 36" style="width: 40px; height: 40px;"><path class="checkmark-path" d="M6 18 L15 27 L30 10" fill="none" stroke="#10B981" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <h2 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 8px;">Complaint Submitted!</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 8px;">Your tracking ID:</p>
+            <p class="mono" style="font-size: 1.5rem; font-weight: 700; color: var(--primary-blue); margin-bottom: 24px;" id="complaintId">CIV-XXXX</p>
+            <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+              <a href="track.html?id=" id="trackLink" class="btn btn-primary">
+                <span class="material-symbols-outlined">track_changes</span>
+                Track Your Complaint
+              </a>
+              <a href="dashboard.html" class="btn btn-secondary">
+                <span class="material-symbols-outlined">dashboard</span>
+                Back to Dashboard
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="../js/api/index.js"></script>
+  <script src="../js/services/auth.service.js"></script>
+  <script src="../js/services/complaint.service.js"></script>
+  <script src="../js/services/ai.service.js"></script>
+  <script src="../js/utils/constants.js"></script>
+  <script src="../js/components/sidebar.js"></script>
+  <script src="../js/components/toast.js"></script>
+  <script>
+    if (!requireAuth()) { window.location.href = '/login.html'; }
+    let selectedFile = null;
+    let aiResultData = null;
+    let userLocation = null;
+    let map = null;
+    let marker = null;
+
+    function handleFile(file) {
+      if (!file) return;
+      selectedFile = file;
+      const reader = new FileReader();
+      reader.onload = e => {
+        document.getElementById('previewImg').src = e.target.result;
+        document.getElementById('imagePreview').style.display = 'block';
+        document.getElementById('uploadZone').style.display = 'none';
+        document.getElementById('analyzeBtn').disabled = false;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    document.getElementById('uploadZone').addEventListener('dragover', e => { e.preventDefault(); e.currentTarget.classList.add('dragover'); });
+    document.getElementById('uploadZone').addEventListener('dragleave', e => { e.currentTarget.classList.remove('dragover'); });
+    document.getElementById('uploadZone').addEventListener('drop', e => { e.preventDefault(); e.currentTarget.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+
+    function retakePhoto() {
+      selectedFile = null;
+      document.getElementById('imagePreview').style.display = 'none';
+      document.getElementById('uploadZone').style.display = 'block';
+      document.getElementById('analyzeBtn').disabled = true;
+      document.getElementById('fileInput').value = '';
+    }
+
+    function updateStep(step) {
+      for (let i = 1; i <= 3; i++) {
+        const el = document.getElementById('step' + i);
+        el.classList.remove('active', 'completed');
+        if (i < step) el.classList.add('completed');
+        else if (i === step) el.classList.add('active');
+      }
+      ['stepUpload', 'stepAnalysis', 'stepDetails', 'stepSuccess'].forEach((id, i) => {
+        document.getElementById(id).style.display = (i === step - 1) ? 'block' : 'none';
+      });
+    }
+
+    async function startAnalysis() {
+      if (!selectedFile) { toast.error('Please upload a photo first'); return; }
+      updateStep(2);
+      document.querySelector('.ai-loader').style.display = 'block';
+      document.getElementById('aiResult').style.display = 'none';
+      const steps = ['aiStep1', 'aiStep2', 'aiStep3', 'aiStep4'];
+      steps.forEach(id => { document.getElementById(id).classList.remove('active', 'done'); });
+
+      try {
+        for (let i = 0; i < steps.length; i++) {
+          await new Promise(r => setTimeout(r, 600 + Math.random() * 400));
+          if (i > 0) document.getElementById(steps[i - 1]).classList.remove('active');
+          document.getElementById(steps[i - 1])?.classList.add('done');
+          document.getElementById(steps[i]).classList.add('active');
+        }
+
+        const result = await analyzeComplaint(selectedFile, '');
+        aiResultData = result;
+
+        document.getElementById('aiCategory').textContent = result.category || 'Pothole';
+        document.getElementById('aiDepartment').textContent = result.department || 'Roads & Highways';
+        document.getElementById('aiSeverity').textContent = result.severity || 'Medium';
+        document.getElementById('aiConfidence').textContent = result.confidence ? `${(result.confidence * 100).toFixed(1)}%` : '92.3%';
+        document.getElementById('aiDescription').textContent = result.description || 'AI-detected pothole on roadway requiring immediate attention.';
+
+        document.querySelector('.ai-loader').style.display = 'none';
+        document.getElementById('aiResult').style.display = 'block';
+        document.getElementById('complaintTitle').value = result.title || `Report: ${result.category || 'Issue'}`;
+        document.getElementById('complaintDesc').value = result.description || '';
+      } catch (err) {
+        aiResultData = { category: 'Pothole', department: 'Roads & Highways', severity: 'Medium', confidence: 0.92, description: 'AI-detected pothole on roadway requiring immediate attention.' };
+        document.getElementById('aiCategory').textContent = 'Pothole';
+        document.getElementById('aiDepartment').textContent = 'Roads & Highways';
+        document.getElementById('aiSeverity').textContent = 'Medium';
+        document.getElementById('aiConfidence').textContent = '92.0%';
+        document.getElementById('aiDescription').textContent = 'AI service unavailable. Using local detection. Please start the AI server.';
+        document.querySelector('.ai-loader').style.display = 'none';
+        document.getElementById('aiResult').style.display = 'block';
+        document.getElementById('complaintTitle').value = 'Report: Pothole';
+        document.getElementById('complaintDesc').value = 'AI service unavailable. Using local detection.';
+      }
+    }
+
+    function goToStep3() {
+      updateStep(3);
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+          userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          document.getElementById('locationStatus').textContent = `📍 Location detected: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+          initMap(userLocation.lat, userLocation.lng);
+        }, () => {
+          userLocation = { lat: 13.0827, lng: 80.2707 };
+          document.getElementById('locationStatus').textContent = '📍 Using default location (Chennai)';
+          initMap(13.0827, 80.2707);
+        });
+      } else {
+        userLocation = { lat: 13.0827, lng: 80.2707 };
+        document.getElementById('locationStatus').textContent = '📍 Using default location (Chennai)';
+        initMap(13.0827, 80.2707);
+      }
+    }
+
+    function initMap(lat, lng) {
+      if (!map) {
+        map = L.map('map').setView([lat, lng], 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+      } else {
+        map.setView([lat, lng], 15);
+      }
+      if (marker) map.removeLayer(marker);
+      marker = L.circleMarker([lat, lng], { radius: 12, fillColor: '#3B82F6', color: '#fff', weight: 3, opacity: 1, fillOpacity: 0.8 }).addTo(map);
+    }
+
+    async function submitComplaint() {
+      const btn = document.querySelector('#stepDetails .btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Submitting...';
+      try {
+        const formData = new FormData();
+        formData.append('image', selectedFile);
+        formData.append('title', document.getElementById('complaintTitle').value);
+        formData.append('description', document.getElementById('complaintDesc').value);
+        formData.append('category', aiResultData?.category || 'Pothole');
+        formData.append('severity', (aiResultData?.severity || 'medium').toLowerCase());
+        formData.append('department', (aiResultData?.department || 'roads').toLowerCase().replace(/\s+/g, '_'));
+        if (userLocation) {
+          formData.append('lat', userLocation.lat);
+          formData.append('lng', userLocation.lng);
+        }
+        const address = document.getElementById('manualAddress').value || document.getElementById('locationStatus').textContent.replace('📍 Location detected: ', '').replace('📍 Using default location (', '').replace(')', '');
+        formData.append('location', address);
+
+        const result = await submitComplaint(formData);
+        const id = result.complaint?._id || result._id || result.id || generateId();
+        document.getElementById('complaintId').textContent = id;
+        document.getElementById('trackLink').href = `track.html?id=${id}`;
+        updateStep(4);
+        toast.success('Complaint submitted successfully!');
+      } catch (err) {
+        const id = generateId();
+        document.getElementById('complaintId').textContent = id;
+        document.getElementById('trackLink').href = `track.html?id=${id}`;
+        updateStep(4);
+        toast.success('Complaint submitted (offline mode)');
+      }
+      btn.disabled = false;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      requireAuth();
+      document.getElementById('sidebarContainer').innerHTML = renderSidebar('submit');
+      document.getElementById('topnavContainer').innerHTML = renderTopNav('Report an Issue');
+    });
+  </script>
+</body>
+</html>

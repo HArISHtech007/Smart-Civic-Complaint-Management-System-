@@ -12,21 +12,54 @@ class ComplaintService {
   }
 
   /**
-   * Get complaints with optional filtering
-   * @param {Object} filter - mongoose query filter
-   * @param {Object} query - express query params for sorting/pagination
-   * @returns {Promise<Array>}
+   * Get complaints with pagination, filtering, search, and sorting
+   * @param {Object} filter - mongoose query filter based on user role
+   * @param {Object} query - express query params for sorting/pagination/search
+   * @returns {Promise<Object>}
    */
   async getComplaints(filter = {}, query = {}) {
-    // Basic sorting by createdAt desc by default
-    const sortBy = query.sortBy || '-createdAt';
+    const page = parseInt(query.page, 10) || 1;
+    const limit = parseInt(query.limit, 10) || 10;
+    const skip = (page - 1) * limit;
     
-    const complaints = await Complaint.find(filter)
+    // Copy filter to prevent side effects
+    const finalFilter = { ...filter };
+    
+    // Support text search query
+    if (query.search) {
+      finalFilter.$text = { $search: query.search };
+    }
+    
+    // Add request query filters if present
+    if (query.status) finalFilter.status = query.status;
+    if (query.priority) finalFilter.priority = query.priority;
+    if (query.department) finalFilter.department = query.department;
+    
+    // Determine sorting options
+    let sortBy = '-createdAt';
+    if (query.sort) {
+      sortBy = query.sort.split(',').join(' ');
+    }
+    
+    const complaintsQuery = Complaint.find(finalFilter)
       .populate('citizen', 'name email phone role')
       .populate('assignedOfficer', 'name email phone role department')
-      .sort(sortBy);
+      .sort(sortBy)
+      .skip(skip)
+      .limit(limit);
       
-    return complaints;
+    const complaints = await complaintsQuery;
+    const total = await Complaint.countDocuments(finalFilter);
+    
+    return {
+      complaints,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      }
+    };
   }
 
   /**

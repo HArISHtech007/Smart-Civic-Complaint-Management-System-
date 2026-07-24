@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Civic Voice — Your City. Your Voice. Fast Fixes.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/global.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <style>
+    .hero-gradient { background: radial-gradient(ellipse at 50% 0%, rgba(59, 130, 246, 0.08) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.05) 0%, transparent 50%), var(--bg-primary); }
+    .hero-grid { background-image: linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px); background-size: 60px 60px; }
+    .feature-card { position: relative; overflow: hidden; }
+    .feature-card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, transparent 50%, rgba(59, 130, 246, 0.03)); pointer-events: none; }
+    .step-connector { position: absolute; top: 40px; left: calc(50% + 40px); width: calc(100% - 80px); height: 2px; background: linear-gradient(90deg, var(--primary-blue), var(--primary-purple)); opacity: 0.3; }
+    @media (max-width: 768px) { .step-connector { display: none; } }
+    .department-card { transition: all 0.3s; }
+    .department-card:hover { transform: translateY(-4px); }
+    .stat-number { font-size: 2.5rem; font-weight: 800; background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  </style>
+</head>
+<body>
+  <div class="floating-blob"></div>
+  <div class="floating-blob"></div>
+  <div class="floating-blob"></div>
+
+  <nav style="position: fixed; top: 0; width: 100%; z-index: 100; padding: 16px 24px; background: rgba(8, 12, 20, 0.8); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border-subtle);">
+    <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple)); display: flex; align-items: center; justify-content: center;">
+          <span class="material-symbols-outlined" style="color: white; font-size: 20px;">account_balance</span>
+        </div>
+        <span style="font-size: 1.25rem; font-weight: 700;">Civic Voice</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <a href="login.html" class="btn btn-ghost">Login</a>
+        <a href="register.html" class="btn btn-primary">Get Started</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <section class="hero-gradient hero-grid" style="min-height: 100vh; display: flex; align-items: center; padding-top: 80px; position: relative; overflow: hidden;">
+      <div style="max-width: 1200px; margin: 0 auto; padding: 0 24px; width: 100%; text-align: center; position: relative; z-index: 1;">
+        <div style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 16px; border-radius: 100px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); margin-bottom: 32px; animation: fadeInDown 0.6s ease;">
+          <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--success-green);"></span>
+          <span style="font-size: 0.8rem; color: var(--text-secondary);">AI-Powered Civic Complaint System</span>
+        </div>
+        <h1 style="font-size: clamp(2.5rem, 6vw, 4.5rem); font-weight: 800; line-height: 1.1; margin-bottom: 24px; animation: fadeInUp 0.6s ease 0.1s both;">
+          Your City.<br>
+          <span class="text-gradient">Your Voice. Fast Fixes.</span>
+        </h1>
+        <p style="font-size: 1.125rem; color: var(--text-secondary); max-width: 600px; margin: 0 auto 40px; line-height: 1.7; animation: fadeInUp 0.6s ease 0.2s both;">
+          Report civic issues instantly. Our AI automatically classifies, prioritizes, and routes complaints to the right municipal department — in seconds.
+        </p>
+        <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; animation: fadeInUp 0.6s ease 0.3s both;">
+          <a href="register.html" class="btn btn-primary" style="padding: 16px 32px; font-size: 1rem;">
+            <span class="material-symbols-outlined">campaign</span>
+            Report a Complaint
+          </a>
+          <a href="login.html" class="btn btn-secondary" style="padding: 16px 32px; font-size: 1rem;">
+            <span class="material-symbols-outlined">search</span>
+            Track Your Complaint
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section data-animate style="padding: 100px 24px; background: var(--bg-secondary);">
+      <div style="max-width: 1200px; margin: 0 auto;">
+        <div style="text-align: center; margin-bottom: 64px;">
+          <h2 style="font-size: 2rem; font-weight: 700; margin-bottom: 12px;">How It Works</h2>
+          <p style="color: var(--text-secondary); max-width: 500px; margin: 0 auto;">Three simple steps to get your civic issue resolved.</p>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 32px; position: relative;">
+          <div class="card card-hover" style="padding: 40px; text-align: center; position: relative;">
+            <div style="width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.05)); display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
+              <span class="material-symbols-outlined" style="font-size: 28px; color: var(--primary-blue);">add_a_photo</span>
+            </div>
+            <div style="position: absolute; top: 20px; left: 20px; width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple)); display: flex; align-items: center; justify-content: center; color: white; font-size: 0.8rem; font-weight: 700;">1</div>
+            <h3 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 12px;">Upload & Describe</h3>
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">Take a photo of the issue, your GPS is auto-detected. Add a short description.</p>
+          </div>
+          <div class="card card-hover" style="padding: 40px; text-align: center; position: relative;">
+            <div style="width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(139,92,246,0.05)); display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
+              <span class="material-symbols-outlined" style="font-size: 28px; color: var(--primary-purple);">psychology</span>
+            </div>
+            <div style="position: absolute; top: 20px; left: 20px; width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple)); display: flex; align-items: center; justify-content: center; color: white; font-size: 0.8rem; font-weight: 700;">2</div>
+            <h3 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 12px;">AI Analyzes</h3>
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">YOLOv8 + Gemini detect the issue, classify severity, and route to the right department.</p>
+          </div>
+          <div class="card card-hover" style="padding: 40px; text-align: center; position: relative;">
+            <div style="width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(16,185,129,0.05)); display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
+              <span class="material-symbols-outlined" style="font-size: 28px; color: var(--success-green);">engineering</span>
+            </div>
+            <div style="position: absolute; top: 20px; left: 20px; width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple)); display: flex; align-items: center; justify-content: center; color: white; font-size: 0.8rem; font-weight: 700;">3</div>
+            <h3 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 12px;">Department Fixes</h3>
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">Assigned to the right officer. Track progress in real-time until resolved.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section data-animate style="padding: 100px 24px;">
+      <div style="max-width: 1200px; margin: 0 auto;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px;">
+          <div class="card" style="padding: 40px; text-align: center;">
+            <div class="stat-number stat-counter" data-target="1250" data-suffix="+">0+</div>
+            <p style="color: var(--text-secondary); margin-top: 8px; font-size: 0.9rem;">Complaints Resolved</p>
+          </div>
+          <div class="card" style="padding: 40px; text-align: center;">
+            <div class="stat-number stat-counter" data-target="6" data-suffix="">0</div>
+            <p style="color: var(--text-secondary); margin-top: 8px; font-size: 0.9rem;">Departments Connected</p>
+          </div>
+          <div class="card" style="padding: 40px; text-align: center;">
+            <div class="stat-number stat-counter" data-target="3" data-suffix="">0</div>
+            <p style="color: var(--text-secondary); margin-top: 8px; font-size: 0.9rem;">Cities Active</p>
+          </div>
+          <div class="card" style="padding: 40px; text-align: center;">
+            <div class="stat-number stat-counter" data-target="48" data-suffix="h">0h</div>
+            <p style="color: var(--text-secondary); margin-top: 8px; font-size: 0.9rem;">Avg Resolution Time</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section data-animate style="padding: 100px 24px; background: var(--bg-secondary);">
+      <div style="max-width: 1200px; margin: 0 auto;">
+        <div style="text-align: center; margin-bottom: 64px;">
+          <h2 style="font-size: 2rem; font-weight: 700; margin-bottom: 12px;">Powerful Features</h2>
+          <p style="color: var(--text-secondary); max-width: 500px; margin: 0 auto;">Built with cutting-edge AI to make civic reporting effortless.</p>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+          <div class="card card-hover feature-card" style="padding: 32px;">
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+              <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(59,130,246,0.15); display: flex; align-items: center; justify-content: center;">
+                <span class="material-symbols-outlined" style="color: var(--primary-blue);">psychology</span>
+              </div>
+              <h3 style="font-weight: 600;">AI Auto-Classification</h3>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">YOLOv8 + NLP instantly detects potholes, garbage, water leaks, and more from your photo.</p>
+          </div>
+          <div class="card card-hover feature-card" style="padding: 32px;">
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+              <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(16,185,129,0.15); display: flex; align-items: center; justify-content: center;">
+                <span class="material-symbols-outlined" style="color: var(--success-green);">location_on</span>
+              </div>
+              <h3 style="font-weight: 600;">GPS Location</h3>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">Auto-detect your location and pin it on an interactive map for precise routing.</p>
+          </div>
+          <div class="card card-hover feature-card" style="padding: 32px;">
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+              <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(245,158,11,0.15); display: flex; align-items: center; justify-content: center;">
+                <span class="material-symbols-outlined" style="color: var(--warning-amber);">track_changes</span>
+              </div>
+              <h3 style="font-weight: 600;">Real-time Tracking</h3>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">Track your complaint from submission to resolution with live status updates.</p>
+          </div>
+          <div class="card card-hover feature-card" style="padding: 32px;">
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+              <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(139,92,246,0.15); display: flex; align-items: center; justify-content: center;">
+                <span class="material-symbols-outlined" style="color: var(--primary-purple);">account_balance</span>
+              </div>
+              <h3 style="font-weight: 600;">Department Routing</h3>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">AI automatically routes to Roads, Waste Management, Water Board, or the right department.</p>
+          </div>
+          <div class="card card-hover feature-card" style="padding: 32px;">
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+              <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(6,182,212,0.15); display: flex; align-items: center; justify-content: center;">
+                <span class="material-symbols-outlined" style="color: var(--accent-cyan);">photo_camera</span>
+              </div>
+              <h3 style="font-weight: 600;">Photo Proof</h3>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">Upload photos as evidence. AI analyzes images to validate and classify the issue.</p>
+          </div>
+          <div class="card card-hover feature-card" style="padding: 32px;">
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+              <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(236,72,153,0.15); display: flex; align-items: center; justify-content: center;">
+                <span class="material-symbols-outlined" style="color: #EC4899;">smartphone</span>
+              </div>
+              <h3 style="font-weight: 600;">Mobile First</h3>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">Fully responsive — works perfectly on mobile for citizens on the go.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section data-animate style="padding: 100px 24px;">
+      <div style="max-width: 1200px; margin: 0 auto;">
+        <div style="text-align: center; margin-bottom: 64px;">
+          <h2 style="font-size: 2rem; font-weight: 700; margin-bottom: 12px;">Municipal Departments</h2>
+          <p style="color: var(--text-secondary); max-width: 500px; margin: 0 auto;">Connected to all major civic departments for fast resolution.</p>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+          <div class="card department-card" style="padding: 32px; border-left: 3px solid #3B82F6;">
+            <div style="display: flex; align-items: center; gap: 16px;">
+              <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(59,130,246,0.15); display: flex; align-items: center; justify-content: center;">
+                <span class="material-symbols-outlined" style="color: #3B82F6;">road</span>
+              </div>
+              <div><h3 style="font-weight: 600; font-size: 1rem;">Roads & Highways</h3><p style="color: var(--text-tertiary); font-size: 0.8rem;">Potholes, road damage</p></div>
+            </div>
+          </div>
+          <div class="card department-card" style="padding: 32px; border-left: 3px solid #10B981;">
+            <div style="display: flex; align-items: center; gap: 16px;">
+              <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(16,185,129,0.15); display: flex; align-items: center; justify-content: center;">
+                <span class="material-symbols-outlined" style="color: #10B981;">delete</span>
+              </div>
+              <div><h3 style="font-weight: 600; font-size: 1rem;">Solid Waste Management</h3><p style="color: var(--text-tertiary); font-size: 0.8rem;">Garbage, illegal dumping</p></div>
+            </div>
+          </div>
+          <div class="card department-card" style="padding: 32px; border-left: 3px solid #06B6D4;">
+            <div style="display: flex; align-items: center; gap: 16px;">
+              <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(6,182,212,0.15); display: flex; align-items: center; justify-content: center;">
+                <span class="material-symbols-outlined" style="color: #06B6D4;">water_drop</span>
+              </div>
+              <div><h3 style="font-weight: 600; font-size: 1rem;">Water Supply & Drainage</h3><p style="color: var(--text-tertiary); font-size: 0.8rem;">Leakage, drainage blockages</p></div>
+            </div>
+          </div>
+          <div class="card department-card" style="padding: 32px; border-left: 3px solid #F59E0B;">
+            <div style="display: flex; align-items: center; gap: 16px;">
+              <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(245,158,11,0.15); display: flex; align-items: center; justify-content: center;">
+                <span class="material-symbols-outlined" style="color: #F59E0B;">light_mode</span>
+              </div>
+              <div><h3 style="font-weight: 600; font-size: 1rem;">Street Lighting</h3><p style="color: var(--text-tertiary); font-size: 0.8rem;">Broken lights, electrical issues</p></div>
+            </div>
+          </div>
+          <div class="card department-card" style="padding: 32px; border-left: 3px solid #8B5CF6;">
+            <div style="display: flex; align-items: center; gap: 16px;">
+              <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(139,92,246,0.15); display: flex; align-items: center; justify-content: center;">
+                <span class="material-symbols-outlined" style="color: #8B5CF6;">apartment</span>
+              </div>
+              <div><h3 style="font-weight: 600; font-size: 1rem;">Town Planning</h3><p style="color: var(--text-tertiary); font-size: 0.8rem;">Illegal construction, zoning</p></div>
+            </div>
+          </div>
+          <div class="card department-card" style="padding: 32px; border-left: 3px solid #EC4899;">
+            <div style="display: flex; align-items: center; gap: 16px;">
+              <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(236,72,153,0.15); display: flex; align-items: center; justify-content: center;">
+                <span class="material-symbols-outlined" style="color: #EC4899;">park</span>
+              </div>
+              <div><h3 style="font-weight: 600; font-size: 1rem;">Parks & Horticulture</h3><p style="color: var(--text-tertiary); font-size: 0.8rem;">Parks, fallen trees, gardens</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section data-animate style="padding: 100px 24px; background: var(--bg-secondary);">
+      <div style="max-width: 1200px; margin: 0 auto;">
+        <div style="text-align: center; margin-bottom: 64px;">
+          <h2 style="font-size: 2rem; font-weight: 700; margin-bottom: 12px;">What Citizens Say</h2>
+          <p style="color: var(--text-secondary); max-width: 500px; margin: 0 auto;">Real feedback from real citizens using Civic Voice.</p>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;">
+          <div class="card" style="padding: 32px;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+              <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">RK</div>
+              <div><p style="font-weight: 600; font-size: 0.9rem;">Rahul K.</p><p style="color: var(--text-tertiary); font-size: 0.8rem;">Chennai</p></div>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7;">"Reported a pothole at 8 AM. By evening, the Roads department had filled it. The AI routing is incredible!"</p>
+          </div>
+          <div class="card" style="padding: 32px;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+              <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-purple), #EC4899); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">PL</div>
+              <div><p style="font-weight: 600; font-size: 0.9rem;">Priya L.</p><p style="color: var(--text-tertiary); font-size: 0.8rem;">Coimbatore</p></div>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7;">"Finally a system that actually works. I can track my garbage complaint in real-time. Love the transparency!"</p>
+          </div>
+          <div class="card" style="padding: 32px;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+              <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-cyan), var(--primary-blue)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">AM</div>
+              <div><p style="font-weight: 600; font-size: 0.9rem;">Arun M.</p><p style="color: var(--text-tertiary); font-size: 0.8rem;">Madurai</p></div>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7;">"The AI correctly identified a water leakage issue from my photo and routed it to the right department. Amazing!"</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer style="padding: 48px 24px; border-top: 1px solid var(--border-subtle);">
+    <div style="max-width: 1200px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 32px;">
+      <div style="max-width: 300px;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+          <div style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple)); display: flex; align-items: center; justify-content: center;">
+            <span class="material-symbols-outlined" style="color: white; font-size: 16px;">account_balance</span>
+          </div>
+          <span style="font-weight: 700; font-size: 1.1rem;">Civic Voice</span>
+        </div>
+        <p style="color: var(--text-tertiary); font-size: 0.85rem; line-height: 1.7;">AI-powered civic complaint management system. Your voice matters.</p>
+      </div>
+      <div>
+        <h4 style="font-weight: 600; margin-bottom: 16px; font-size: 0.9rem;">Quick Links</h4>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <a href="#" style="color: var(--text-tertiary); font-size: 0.85rem;">Home</a>
+          <a href="login.html" style="color: var(--text-tertiary); font-size: 0.85rem;">Login</a>
+          <a href="register.html" style="color: var(--text-tertiary); font-size: 0.85rem;">Register</a>
+        </div>
+      </div>
+      <div>
+        <h4 style="font-weight: 600; margin-bottom: 16px; font-size: 0.9rem;">Contact</h4>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <p style="color: var(--text-tertiary); font-size: 0.85rem;">support@civicvoice.in</p>
+          <p style="color: var(--text-tertiary); font-size: 0.85rem;">Powered by Greater Chennai Corporation</p>
+        </div>
+      </div>
+    </div>
+    <div style="max-width: 1200px; margin: 32px auto 0; padding-top: 24px; border-top: 1px solid var(--border-subtle); text-align: center;">
+      <p style="color: var(--text-muted); font-size: 0.8rem;">&copy; 2026 Civic Voice. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="js/utils/constants.js"></script>
+  <script src="js/utils/utils.js"></script>
+  <script src="js/api/index.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      getStatsCounter();
+      observeAnimations();
+    });
+  </script>
+</body>
+</html>
