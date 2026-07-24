@@ -13,13 +13,30 @@
   <link rel="stylesheet" href="../css/animations.css">
   <link rel="stylesheet" href="../css/responsive.css">
   <style>
-    .dashboard-layout { display: flex; min-height: 100vh; }
-    .main-content { margin-left: var(--sidebar-width); flex: 1; }
-    .tabs { display: flex; gap: 4px; margin-bottom: 24px; background: var(--bg-card); padding: 4px; border-radius: var(--radius-md); width: fit-content; }
-    .tab { padding: 8px 20px; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 500; color: var(--text-tertiary); cursor: pointer; transition: all 0.2s; }
-    .tab.active { background: var(--primary-blue); color: white; }
-    .user-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-    @media (max-width: 768px) { .sidebar { transform: translateX(-100%); } .main-content { margin-left: 0; } }
+    .dashboard-layout { display: flex; min-height: 100vh; background-color: var(--bg-primary); }
+    .main-content { margin-left: var(--sidebar-width); flex: 1; min-width: 0; }
+    .tabs { display: flex; gap: 6px; margin-bottom: 24px; background: var(--bg-secondary); padding: 6px; border-radius: var(--radius-lg); width: fit-content; border: 1px solid var(--border-subtle); }
+    .tab { padding: 10px 22px; border-radius: var(--radius-md); font-size: 0.88rem; font-weight: 600; color: var(--text-tertiary); cursor: pointer; transition: all 0.2s; user-select: none; }
+    .tab:hover { color: var(--text-primary); }
+    .tab.active { background: var(--primary-blue); color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+    .user-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px; }
+    
+    .user-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: all 0.2s ease;
+    }
+    .user-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(59, 130, 246, 0.3);
+      box-shadow: 0 10px 20px -8px rgba(0, 0, 0, 0.3);
+    }
+    @media (max-width: 768px) { .sidebar { transform: translateX(-100%); } .main-content { margin-left: 0; } .tabs { width: 100%; overflow-x: auto; } }
   </style>
 </head>
 <body>
@@ -27,20 +44,28 @@
     <div id="sidebarContainer"></div>
     <div class="main-content">
       <div id="topnavContainer"></div>
-      <div style="padding: 32px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-          <h1 style="font-size: 1.5rem; font-weight: 700;">Users Management</h1>
-          <button class="btn btn-primary" onclick="showAddUserModal()"><span class="material-symbols-outlined">person_add</span> Add User</button>
+
+      <div style="padding: 32px; max-width: 1300px; margin: 0 auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+          <div>
+            <h1 style="font-size: 1.75rem; font-weight: 800; letter-spacing: -0.02em;">Users Management</h1>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px;">Manage accounts, credentials, and access roles across the platform.</p>
+          </div>
+          <button class="btn btn-primary" onclick="showAddUserModal()" style="padding: 12px 20px; font-weight: 600;">
+            <span class="material-symbols-outlined" style="font-size: 20px;">person_add</span> Add New User
+          </button>
         </div>
+
+        <!-- Role Tabs -->
         <div class="tabs" id="userTabs">
           <div class="tab active" data-role="citizen" onclick="switchTab('citizen')">Citizens</div>
-          <div class="tab" data-role="officer" onclick="switchTab('officer')">Officers</div>
+          <div class="tab" data-role="officer" onclick="switchTab('officer')">Field Officers</div>
           <div class="tab" data-role="head_officer" onclick="switchTab('head_officer')">Head Officers</div>
           <div class="tab" data-role="admin" onclick="switchTab('admin')">Admins</div>
         </div>
-        <div class="user-grid" id="userGrid">
-          <div class="card" style="padding: 24px;"><div class="skeleton" style="height: 48px; width: 48px; border-radius: 50%; margin-bottom: 12px;"></div><div class="skeleton" style="height: 16px; width: 60%;"></div></div>
-        </div>
+
+        <!-- Users Grid -->
+        <div class="user-grid" id="userGrid"></div>
       </div>
     </div>
   </div>
@@ -50,9 +75,10 @@
   <script src="../js/services/auth.service.js"></script>
   <script src="../js/services/user.service.js"></script>
   <script src="../js/utils/constants.js"></script>
-  <script src="../js/components/sidebar.js"></script>
-  <script src="../js/components/modal.js"></script>
-  <script src="../js/components/toast.js"></script>
+  <script src="../js/utils/utils.js"></script>
+  <script src="../components/sidebar.js"></script>
+  <script src="../components/modal.js"></script>
+  <script src="../components/toast.js"></script>
   <script>
     if (!requireAuth()) { window.location.href = '/login.html'; }
     let currentRole = 'citizen';
@@ -65,51 +91,94 @@
 
     async function loadUsers() {
       const grid = document.getElementById('userGrid');
-      grid.innerHTML = createLoadingSkeleton(4, 'card');
+      grid.innerHTML = (typeof createLoadingSkeleton === 'function') ? 
+        createLoadingSkeleton(4, 'card') : 
+        `<div class="card" style="grid-column: 1/-1; padding: 40px; text-align: center;"><div class="spinner" style="margin: 0 auto 12px auto;"></div><p style="color: var(--text-tertiary);">Loading user records...</p></div>`;
+
       try {
         const data = await getUsers({ role: currentRole });
-        const users = data.users || data.data || data || [];
-        grid.innerHTML = users.length ? users.map(u => `
-          <div class="card card-hover" style="padding: 20px; display: flex; align-items: center; gap: 16px;">
-            <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; flex-shrink: 0;">${u.name?.charAt(0) || 'U'}</div>
-            <div style="flex: 1; min-width: 0;">
-              <p style="font-weight: 600; font-size: 0.9rem;">${u.name || 'User'}</p>
-              <p style="color: var(--text-tertiary); font-size: 0.8rem;">${u.email || ''}</p>
-              ${u.phone ? `<p style="color: var(--text-muted); font-size: 0.75rem;">${u.phone}</p>` : ''}
-            </div>
-            <div style="display: flex; gap: 4px;">
-              <button class="btn btn-ghost" style="padding: 4px;" onclick="toast.info('Edit user')"><span class="material-symbols-outlined" style="font-size: 18px;">edit</span></button>
-              <button class="btn btn-ghost" style="padding: 4px; color: var(--danger-red);" onclick="showConfirmDialog('Delete ${u.name}?', ()=>{toast.success('Deleted'); loadUsers();})"><span class="material-symbols-outlined" style="font-size: 18px;">delete</span></button>
-            </div>
-          </div>
-        `).join('') : '<div class="card" style="padding: 40px; text-align: center; grid-column: 1/-1;"><p style="color: var(--text-tertiary);">No users found.</p></div>';
+        const users = data.users || data.data || (Array.isArray(data) ? data : []);
+
+        if (!users.length) {
+          grid.innerHTML = `
+            <div class="card" style="padding: 48px 20px; text-align: center; grid-column: 1/-1;">
+              <span class="material-symbols-outlined" style="font-size: 40px; color: var(--text-tertiary); margin-bottom: 12px;">person_off</span>
+              <h3 style="font-weight: 700; font-size: 1.1rem; margin-bottom: 6px;">No ${currentRole.replace('_', ' ')}s found</h3>
+              <p style="color: var(--text-tertiary); font-size: 0.88rem; margin-bottom: 16px;">There are currently no registered users registered under this role.</p>
+              <button class="btn btn-secondary" onclick="showAddUserModal()">+ Add ${currentRole.replace('_', ' ')}</button>
+            </div>`;
+          return;
+        }
+
+        grid.innerHTML = users.map(u => {
+          const initials = (u.name || 'User').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+          const deptTag = u.department ? `<span class="badge" style="background: rgba(59,130,246,0.1); color: var(--primary-blue); font-size: 0.72rem; margin-top: 4px;">${u.department}</span>` : '';
+
+          return `
+            <div class="user-card">
+              <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 1rem; flex-shrink: 0; box-shadow: 0 4px 10px rgba(59,130,246,0.25);">
+                ${initials}
+              </div>
+              <div style="flex: 1; min-width: 0;">
+                <h3 style="font-weight: 700; font-size: 0.98rem; color: var(--text-primary); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${u.name || 'User Account'}</h3>
+                <p style="color: var(--text-tertiary); font-size: 0.82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${u.email || ''}</p>
+                ${u.phone ? `<p style="color: var(--text-muted); font-size: 0.76rem; margin-top: 2px; display: flex; align-items: center; gap: 4px;"><span class="material-symbols-outlined" style="font-size: 13px;">call</span> ${u.phone}</p>` : ''}
+                ${deptTag}
+              </div>
+              <div style="display: flex; gap: 4px;">
+                <button class="btn btn-ghost" style="padding: 6px; color: var(--text-secondary);" title="Edit User" onclick="toast.info('Edit ${u.name}')"><span class="material-symbols-outlined" style="font-size: 18px;">edit</span></button>
+                <button class="btn btn-ghost" style="padding: 6px; color: var(--danger-red);" title="Delete User" onclick="deleteUserHandler('${u._id}', '${u.name}')"><span class="material-symbols-outlined" style="font-size: 18px;">delete</span></button>
+              </div>
+            </div>`;
+        }).join('');
       } catch (err) {
-        grid.innerHTML = Array(4).fill(0).map((_, i) => `
-          <div class="card card-hover" style="padding: 20px; display: flex; align-items: center; gap: 16px;">
-            <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">${['A','B','C','D'][i]}</div>
-            <div style="flex: 1;">
-              <p style="font-weight: 600; font-size: 0.9rem;">User ${i + 1}</p>
-              <p style="color: var(--text-tertiary); font-size: 0.8rem;">user${i+1}@example.com</p>
-            </div>
-            <div style="display: flex; gap: 4px;">
-              <button class="btn btn-ghost" style="padding: 4px;"><span class="material-symbols-outlined" style="font-size: 18px;">edit</span></button>
-              <button class="btn btn-ghost" style="padding: 4px; color: var(--danger-red);"><span class="material-symbols-outlined" style="font-size: 18px;">delete</span></button>
-            </div>
-          </div>
-        `).join('');
+        console.error('Users load error:', err);
+        grid.innerHTML = `<div class="card" style="padding: 40px; text-align: center; grid-column: 1/-1;"><p style="color: var(--danger-red);">Failed to load user list. Please refresh.</p></div>`;
       }
+    }
+
+    async function deleteUserHandler(id, name) {
+      showConfirmDialog(`Are you sure you want to remove user "${name}"?`, async () => {
+        await deleteUser(id);
+        toast.success(`User "${name}" removed successfully`);
+        loadUsers();
+      });
     }
 
     function showAddUserModal() {
       renderModal({
-        title: 'Add User',
-        content: `<div class="floating-label-group"><input type="text" id="newName" class="input" placeholder=" "><label>Full Name</label></div>
-        <div class="floating-label-group"><input type="email" id="newEmail" class="input" placeholder=" "><label>Email</label></div>
-        <div class="floating-label-group"><input type="tel" id="newPhone" class="input" placeholder=" "><label>Phone</label></div>
-        <div class="floating-label-group"><input type="password" id="newPwd" class="input" placeholder=" "><label>Password</label></div>`,
+        title: 'Add New User Account',
+        content: `
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="floating-label-group"><input type="text" id="newName" class="input" placeholder=" "><label>Full Name</label></div>
+            <div class="floating-label-group"><input type="email" id="newEmail" class="input" placeholder=" "><label>Email Address</label></div>
+            <div class="floating-label-group"><input type="tel" id="newPhone" class="input" placeholder=" "><label>Phone Number</label></div>
+            <div class="floating-label-group"><input type="password" id="newPwd" class="input" placeholder=" "><label>Password</label></div>
+            <div>
+              <label style="font-size: 0.8rem; color: var(--text-tertiary); display: block; margin-bottom: 6px;">Role</label>
+              <select id="newRole" class="input" style="width: 100%;">
+                <option value="citizen" ${currentRole === 'citizen' ? 'selected' : ''}>Citizen</option>
+                <option value="officer" ${currentRole === 'officer' ? 'selected' : ''}>Field Officer</option>
+                <option value="head_officer" ${currentRole === 'head_officer' ? 'selected' : ''}>Head Officer</option>
+                <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>Admin</option>
+              </select>
+            </div>
+          </div>`,
         confirmText: 'Create User',
         onConfirm: async (close) => {
-          toast.success('User created successfully');
+          const name = document.getElementById('newName').value;
+          const email = document.getElementById('newEmail').value;
+          const phone = document.getElementById('newPhone').value;
+          const password = document.getElementById('newPwd').value;
+          const role = document.getElementById('newRole').value;
+
+          if (!name || !email) {
+            toast.error('Please enter name and email');
+            return;
+          }
+
+          await createUser({ name, email, phone, password, role });
+          toast.success(`User ${name} created!`);
           close();
           loadUsers();
         }

@@ -472,7 +472,15 @@ Notification.updateMany = async (filter, update) => {
 const app = require('./app');
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+const serverInstance = app.listen(PORT, () => {
   console.log(`[Mock Server] Express backend listening on http://localhost:${PORT}`);
   console.log(`[Mock Server] Active Environment: ${process.env.NODE_ENV}`);
+});
+
+serverInstance.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.log(`[Mock Server] Express backend is already active on http://localhost:${PORT}`);
+  } else {
+    console.error('[Mock Server Error]:', err);
+  }
 });
