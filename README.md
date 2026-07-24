@@ -166,5 +166,3 @@ A full-stack web platform where:
 | Python FastAPI | AI microservice exposing detection endpoints |
 
 ---
-
-##Live Screenshot
