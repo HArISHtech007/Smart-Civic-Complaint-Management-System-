@@ -5,6 +5,8 @@ const path = require('path');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 const authRoutes = require('./routes/authRoutes');
 const complaintRoutes = require('./routes/complaintRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 
 // Load environment variables (fallback if not loaded in server.js)
 require('dotenv').config();
@@ -38,6 +40,8 @@ app.get('/', (req, res) => {
 // 5) Mount API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/complaints', complaintRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // 6) Error Handling Middleware
 app.use(notFound);

@@ -39,6 +39,16 @@ const mockUsers = [
     password: 'password123',
     role: 'Admin',
     createdAt: new Date(),
+  },
+  {
+    _id: '65fb7bb360d8e20f381e5b85',
+    name: 'Carol Head',
+    email: 'carol@example.com',
+    phone: '9876543212',
+    password: 'password123',
+    role: 'HeadOfficer',
+    department: 'Sanitation',
+    createdAt: new Date(),
   }
 ];
 
@@ -208,6 +218,201 @@ Complaint.findByIdAndDelete = async (id) => {
   if (idx === -1) return null;
   const deleted = mockComplaints.splice(idx, 1);
   return deleted[0];
+};
+
+// --- MOCK MONGOOSE AGGREGATION PIPELINES ---
+
+User.aggregate = async (pipeline) => {
+  const roleGroups = {};
+  mockUsers.forEach(u => {
+    roleGroups[u.role] = (roleGroups[u.role] || 0) + 1;
+  });
+  return Object.entries(roleGroups).map(([role, count]) => ({ _id: role, count }));
+};
+
+Complaint.aggregate = async (pipeline) => {
+  const matchStage = pipeline.find(stage => stage.$match);
+  const groupStage = pipeline.find(stage => stage.$group);
+
+  let filtered = [...mockComplaints];
+
+  // Apply match stage
+  if (matchStage) {
+    const match = matchStage.$match;
+    if (match.citizen) {
+      filtered = filtered.filter(c => {
+        const citizenId = typeof c.citizen === 'object' ? c.citizen._id : c.citizen;
+        return citizenId.toString() === match.citizen.toString();
+      });
+    }
+    if (match.assignedOfficer) {
+      filtered = filtered.filter(c => {
+        const officerId = typeof c.assignedOfficer === 'object' ? c.assignedOfficer?._id : c.assignedOfficer;
+        return officerId && officerId.toString() === match.assignedOfficer.toString();
+      });
+    }
+    if (match.department) {
+      filtered = filtered.filter(c => c.department === match.department);
+    }
+  }
+
+  // Apply group stage
+  if (groupStage) {
+    const group = groupStage.$group;
+    const groupField = typeof group._id === 'string' && group._id.startsWith('$') 
+      ? group._id.substring(1) 
+      : group._id;
+
+    if (groupField === 'status') {
+      const statusGroups = {};
+      filtered.forEach(c => {
+        statusGroups[c.status] = (statusGroups[c.status] || 0) + 1;
+      });
+      return Object.entries(statusGroups).map(([status, count]) => ({ _id: status, count }));
+    }
+
+    if (groupField === 'department') {
+      if (group.completed) {
+        const deptGroups = {};
+        filtered.forEach(c => {
+          if (!deptGroups[c.department]) {
+            deptGroups[c.department] = { total: 0, completed: 0 };
+          }
+          deptGroups[c.department].total += 1;
+          if (c.status === 'Completed') {
+            deptGroups[c.department].completed += 1;
+          }
+        });
+
+        return Object.entries(deptGroups).map(([dept, stats]) => {
+          let rate = stats.total > 0 ? (stats.completed / stats.total) * 100 : 0;
+          rate = Math.round(rate * 10) / 10;
+          return {
+            _id: dept,
+            total: stats.total,
+            completed: stats.completed,
+            rate: rate
+          };
+        });
+      }
+
+      const deptGroups = {};
+      filtered.forEach(c => {
+        deptGroups[c.department] = (deptGroups[c.department] || 0) + 1;
+      });
+      return Object.entries(deptGroups).map(([dept, count]) => ({ _id: dept, count }));
+    }
+
+    if (typeof groupField === 'object') {
+      const monthlyGroups = {};
+      filtered.forEach(c => {
+        const date = new Date(c.createdAt);
+        const key = `${date.getFullYear()}-${date.getMonth() + 1}`;
+        monthlyGroups[key] = (monthlyGroups[key] || 0) + 1;
+      });
+      return Object.entries(monthlyGroups).map(([key, count]) => {
+        const [year, month] = key.split('-').map(Number);
+        return {
+          _id: { month, year },
+          count
+        };
+      });
+    }
+  }
+
+  return [];
+};
+
+Complaint.countDocuments = async (query) => {
+  let filtered = [...mockComplaints];
+
+  if (query.department) {
+    filtered = filtered.filter(c => c.department === query.department);
+  }
+  if (query.priority) {
+    filtered = filtered.filter(c => c.priority === query.priority);
+  }
+  if (query.status) {
+    if (typeof query.status === 'object' && query.status.$ne) {
+      filtered = filtered.filter(c => c.status !== query.status.$ne);
+    } else if (typeof query.status === 'string') {
+      filtered = filtered.filter(c => c.status === query.status);
+    }
+  }
+  if (query.assignedOfficer) {
+    filtered = filtered.filter(c => {
+      const officerId = typeof c.assignedOfficer === 'object' ? c.assignedOfficer?._id : c.assignedOfficer;
+      return officerId && officerId.toString() === query.assignedOfficer.toString();
+    });
+  }
+
+  return filtered.length;
+};
+
+// --- MOCK NOTIFICATION QUERIES ---
+
+const Notification = require('./models/notificationModel');
+const mockNotifications = [
+  {
+    _id: 'mock-notify-1',
+    user: '65fb7bb360d8e20f381e5b81', // John Citizen
+    message: 'Welcome to CivicSmart Portal! Your account is active.',
+    type: 'Success',
+    read: false,
+    createdAt: new Date()
+  },
+  {
+    _id: 'mock-notify-2',
+    user: '65fb7bb360d8e20f381e5b81', // John Citizen
+    message: 'AI Pipeline successfully routed your pothole report to Public Works.',
+    type: 'Info',
+    read: false,
+    createdAt: new Date()
+  }
+];
+
+Notification.find = (query) => {
+  const chain = {
+    sort: function() { return this; },
+    then: function(resolve) {
+      let filtered = [...mockNotifications];
+      if (query.user) {
+        filtered = filtered.filter(n => n.user.toString() === query.user.toString());
+      }
+      if (query.read !== undefined) {
+        filtered = filtered.filter(n => n.read === query.read);
+      }
+      resolve(filtered);
+    }
+  };
+  return chain;
+};
+
+Notification.findById = async (id) => {
+  const found = mockNotifications.find(n => n._id === id.toString());
+  if (!found) return null;
+  return {
+    ...found,
+    save: async function() {
+      const idx = mockNotifications.findIndex(n => n._id === found._id);
+      if (idx !== -1) {
+        mockNotifications[idx] = { ...found, read: this.read };
+      }
+      return this;
+    }
+  };
+};
+
+Notification.updateMany = async (filter, update) => {
+  const readVal = update.$set ? update.$set.read : update.read;
+  let count = 0;
+  mockNotifications.forEach(n => {
+    if (n.user.toString() === filter.user.toString()) {
+      n.read = readVal;
+      count++;
+    }
+  });
+  return { nModified: count };
 };
 
 // 4) Load Express App and start server
