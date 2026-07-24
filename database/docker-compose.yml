@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  mongodb:
+    image: mongo:7
+    container_name: civic-complaint-db
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./mongodb/data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: smart_civic_complaints

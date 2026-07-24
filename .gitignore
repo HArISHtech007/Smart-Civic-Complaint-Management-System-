@@ -3,3 +3,9 @@ start.bat
 frontend.md
 node_modules/
 .env
+# Database - exclude actual data but keep folder structure
+database/mongodb/data/*.wt
+database/mongodb/data/*.rs
+database/mongodb/data/WiredTiger*
+database/mongodb/data/journal/
+database/mongodb/data/diagnostic.data/
