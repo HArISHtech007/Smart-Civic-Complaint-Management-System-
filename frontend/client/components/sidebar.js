@@ -25,8 +25,7 @@ function renderSidebar(activePage) {
       { icon: 'list_alt', label: 'Complaints', href: '/admin/complaints.html', id: 'complaints' },
       { icon: 'people', label: 'Users', href: '/admin/users.html', id: 'users' },
       { icon: 'apartment', label: 'Departments', href: '/admin/departments.html', id: 'departments' },
-      { icon: 'analytics', label: 'Analytics', href: '/admin/analytics.html', id: 'analytics' },
-      { icon: 'settings', label: 'Settings', href: '/admin/settings.html', id: 'settings' }
+      { icon: 'analytics', label: 'Analytics', href: '/admin/analytics.html', id: 'analytics' }
     ]
   };
   const items = menus[role] || menus.citizen;
