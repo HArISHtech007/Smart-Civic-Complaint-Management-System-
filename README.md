@@ -164,6 +164,4 @@ A full-stack web platform where:
 | Gemini 2.5 Flash | Image recognition, workflow analysis, smart description |
 | NLP (text classification) | Complaint text categorization and severity scoring |
 | Python FastAPI | AI microservice exposing detection endpoints |
-Landing Page
 ---
-![Landing Page](.assets/landingpage.png)
