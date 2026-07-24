@@ -14,11 +14,98 @@
   <link rel="stylesheet" href="../css/animations.css">
   <link rel="stylesheet" href="../css/responsive.css">
   <style>
-    .dashboard-layout { display: flex; min-height: 100vh; }
-    .main-content { margin-left: var(--sidebar-width); flex: 1; }
-    .complaint-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
-    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 40px; text-align: center; }
-    @media (max-width: 768px) { .sidebar { transform: translateX(-100%); } .main-content { margin-left: 0; } .sidebar.open { transform: translateX(0); } }
+    .dashboard-layout { display: flex; min-height: 100vh; background-color: var(--bg-primary); }
+    .main-content { margin-left: var(--sidebar-width); flex: 1; min-width: 0; }
+    
+    .stat-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 20px 24px;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(59, 130, 246, 0.4);
+      box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.3);
+    }
+    .stat-card.active-stat {
+      border-color: var(--primary-blue);
+      background: rgba(59, 130, 246, 0.06);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+    }
+
+    .search-filter-bar {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .complaint-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 20px;
+    }
+
+    .complaint-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      cursor: pointer;
+      position: relative;
+    }
+    .complaint-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(59, 130, 246, 0.35);
+      box-shadow: 0 16px 32px -12px rgba(0, 0, 0, 0.4);
+    }
+
+    .progress-bar-bg {
+      height: 6px;
+      width: 100%;
+      background: rgba(148, 163, 184, 0.15);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.4s ease;
+    }
+
+    .quick-banner {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(139, 92, 246, 0.12));
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      border-radius: var(--radius-lg);
+      padding: 24px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); }
+      .main-content { margin-left: 0; }
+      .search-filter-bar { flex-direction: column; align-items: stretch; }
+      .complaint-grid { grid-template-columns: 1fr; }
+      .quick-banner { flex-direction: column; text-align: center; gap: 16px; }
+    }
   </style>
 </head>
 <body>
@@ -26,73 +113,128 @@
     <div id="sidebarContainer"></div>
     <div class="main-content">
       <div id="topnavContainer"></div>
-      <div style="padding: 32px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+
+      <div style="padding: 32px; max-width: 1400px; margin: 0 auto;">
+        
+        <!-- Welcome Header -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; flex-wrap: wrap; gap: 16px;">
           <div>
-            <h1 style="font-size: 1.5rem; font-weight: 700;" id="greeting">Good morning 👋</h1>
-            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 4px;">Here's your complaint activity overview</p>
+            <h1 style="font-size: 1.75rem; font-weight: 800; letter-spacing: -0.02em;" id="greeting">Good morning 👋</h1>
+            <p style="color: var(--text-secondary); font-size: 0.95rem; margin-top: 4px;">Welcome to your civic portal. Monitor your reported issues and local resolutions.</p>
           </div>
-          <a href="submit.html" class="btn btn-primary" style="padding: 12px 24px;">
-            <span class="material-symbols-outlined">add_circle</span>
-            Report New Issue
-          </a>
-        </div>
-
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px;">
-          <div class="card" style="padding: 24px;">
-            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-              <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(59,130,246,0.15); display: flex; align-items: center; justify-content: center;">
-                <span class="material-symbols-outlined" style="color: var(--primary-blue);">description</span>
-              </div>
-              <span style="color: var(--text-secondary); font-size: 0.85rem;">Total Complaints</span>
-            </div>
-            <p class="stat-number" id="totalComplaints" style="font-size: 1.75rem; font-weight: 800;">--</p>
-          </div>
-          <div class="card" style="padding: 24px;">
-            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-              <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(245,158,11,0.15); display: flex; align-items: center; justify-content: center;">
-                <span class="material-symbols-outlined" style="color: var(--warning-amber);">hourglass_empty</span>
-              </div>
-              <span style="color: var(--text-secondary); font-size: 0.85rem;">Pending</span>
-            </div>
-            <p class="stat-number" id="pendingCount" style="font-size: 1.75rem; font-weight: 800;">--</p>
-          </div>
-          <div class="card" style="padding: 24px;">
-            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-              <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(139,92,246,0.15); display: flex; align-items: center; justify-content: center;">
-                <span class="material-symbols-outlined" style="color: var(--primary-purple);">engineering</span>
-              </div>
-              <span style="color: var(--text-secondary); font-size: 0.85rem;">In Progress</span>
-            </div>
-            <p class="stat-number" id="inProgressCount" style="font-size: 1.75rem; font-weight: 800;">--</p>
-          </div>
-          <div class="card" style="padding: 24px;">
-            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-              <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(16,185,129,0.15); display: flex; align-items: center; justify-content: center;">
-                <span class="material-symbols-outlined" style="color: var(--success-green);">check_circle</span>
-              </div>
-              <span style="color: var(--text-secondary); font-size: 0.85rem;">Resolved</span>
-            </div>
-            <p class="stat-number" id="resolvedCount" style="font-size: 1.75rem; font-weight: 800;">--</p>
+          <div style="display: flex; gap: 12px;">
+            <a href="submit.html" class="btn btn-primary" style="padding: 12px 24px; font-weight: 600; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);">
+              <span class="material-symbols-outlined" style="font-size: 20px;">add_circle</span>
+              Report New Issue
+            </a>
           </div>
         </div>
 
-        <div id="complaintsSection">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2 style="font-size: 1.1rem; font-weight: 600;">My Complaints</h2>
-            <div style="display: flex; gap: 8px;">
-              <select class="input" style="width: auto; padding: 8px 12px;" id="statusFilter" onchange="loadComplaints()">
-                <option value="">All Status</option>
-                <option value="submitted">Submitted</option>
-                <option value="under_review">Under Review</option>
-                <option value="assigned">Assigned</option>
-                <option value="in_progress">In Progress</option>
-                <option value="resolved">Resolved</option>
-              </select>
+        <!-- Stat Counter Cards -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px;">
+          <div class="stat-card active-stat" id="statCardAll" onclick="selectStatFilter('')">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+              <span style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Total Complaints</span>
+              <div style="width: 42px; height: 42px; border-radius: 12px; background: rgba(59,130,246,0.15); display: flex; align-items: center; justify-content: center;">
+                <span class="material-symbols-outlined" style="color: var(--primary-blue); font-size: 22px;">description</span>
+              </div>
+            </div>
+            <p class="stat-number" id="totalComplaints" style="font-size: 2rem; font-weight: 800; color: var(--text-primary);">--</p>
+            <p style="color: var(--text-tertiary); font-size: 0.75rem; margin-top: 6px;">All submitted issues</p>
+          </div>
+
+          <div class="stat-card" id="statCardPending" onclick="selectStatFilter('pending')">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+              <span style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Pending Review</span>
+              <div style="width: 42px; height: 42px; border-radius: 12px; background: rgba(245,158,11,0.15); display: flex; align-items: center; justify-content: center;">
+                <span class="material-symbols-outlined" style="color: var(--warning-amber); font-size: 22px;">hourglass_empty</span>
+              </div>
+            </div>
+            <p class="stat-number" id="pendingCount" style="font-size: 2rem; font-weight: 800; color: var(--warning-amber);">--</p>
+            <p style="color: var(--text-tertiary); font-size: 0.75rem; margin-top: 6px;">Awaiting verification</p>
+          </div>
+
+          <div class="stat-card" id="statCardInProgress" onclick="selectStatFilter('in_progress')">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+              <span style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">In Progress</span>
+              <div style="width: 42px; height: 42px; border-radius: 12px; background: rgba(139,92,246,0.15); display: flex; align-items: center; justify-content: center;">
+                <span class="material-symbols-outlined" style="color: var(--primary-purple); font-size: 22px;">engineering</span>
+              </div>
+            </div>
+            <p class="stat-number" id="inProgressCount" style="font-size: 2rem; font-weight: 800; color: var(--primary-purple);">--</p>
+            <p style="color: var(--text-tertiary); font-size: 0.75rem; margin-top: 6px;">Assigned to department</p>
+          </div>
+
+          <div class="stat-card" id="statCardResolved" onclick="selectStatFilter('resolved')">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+              <span style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Resolved</span>
+              <div style="width: 42px; height: 42px; border-radius: 12px; background: rgba(16,185,129,0.15); display: flex; align-items: center; justify-content: center;">
+                <span class="material-symbols-outlined" style="color: var(--success-green); font-size: 22px;">check_circle</span>
+              </div>
+            </div>
+            <p class="stat-number" id="resolvedCount" style="font-size: 2rem; font-weight: 800; color: var(--success-green);">--</p>
+            <p style="color: var(--text-tertiary); font-size: 0.75rem; margin-top: 6px;">Completed & closed</p>
+          </div>
+        </div>
+
+        <!-- Quick AI Banner -->
+        <div class="quick-banner">
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <div style="width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">
+              <span class="material-symbols-outlined" style="color: white; font-size: 26px;">auto_awesome</span>
+            </div>
+            <div>
+              <h3 style="font-weight: 700; font-size: 1.05rem; margin-bottom: 2px;">AI Automated Issue Classification Active</h3>
+              <p style="color: var(--text-secondary); font-size: 0.85rem;">Your uploads are processed with Computer Vision & NLP for instant severity scoring and smart department routing.</p>
             </div>
           </div>
-          <div id="complaintList" class="complaint-grid"></div>
+          <a href="submit.html" class="btn btn-secondary" style="white-space: nowrap; font-weight: 600;">Try Smart Scan</a>
         </div>
+
+        <!-- Search & Filter Controls -->
+        <div class="search-filter-bar">
+          <div style="position: relative; flex: 1; min-width: 240px;">
+            <span class="material-symbols-outlined" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-tertiary); font-size: 20px;">search</span>
+            <input type="text" id="searchInput" class="input" placeholder="Search by title, location, category or tracking ID..." style="padding-left: 42px; width: 100%; border-radius: var(--radius-md);" oninput="applyFilters()">
+          </div>
+
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <select id="statusFilter" class="input" style="width: auto; padding: 10px 14px; border-radius: var(--radius-md);" onchange="applyFilters()">
+              <option value="">All Statuses</option>
+              <option value="submitted">Submitted</option>
+              <option value="under_review">Under Review</option>
+              <option value="assigned">Assigned</option>
+              <option value="in_progress">In Progress</option>
+              <option value="resolved">Resolved</option>
+              <option value="closed">Closed</option>
+            </select>
+
+            <select id="categoryFilter" class="input" style="width: auto; padding: 10px 14px; border-radius: var(--radius-md);" onchange="applyFilters()">
+              <option value="">All Categories</option>
+              <option value="Pothole">Potholes</option>
+              <option value="Garbage Overflow">Garbage Overflow</option>
+              <option value="Water Leakage">Water Leakage</option>
+              <option value="Broken Street Light">Street Lighting</option>
+              <option value="Drainage Blockage">Drainage Blockage</option>
+              <option value="Other">Other Issues</option>
+            </select>
+
+            <button class="btn btn-secondary" style="padding: 10px 14px;" onclick="resetFilters()">
+              <span class="material-symbols-outlined" style="font-size: 18px;">restart_alt</span>
+              Reset
+            </button>
+          </div>
+        </div>
+
+        <!-- Section Header -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2 style="font-size: 1.2rem; font-weight: 700;" id="sectionTitle">My Complaints</h2>
+          <span style="font-size: 0.85rem; color: var(--text-tertiary);" id="resultCount">Showing 0 complaints</span>
+        </div>
+
+        <!-- Complaints Grid -->
+        <div id="complaintList" class="complaint-grid"></div>
+
       </div>
     </div>
   </div>
@@ -100,80 +242,238 @@
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <script src="../js/api/index.js"></script>
   <script src="../js/services/auth.service.js"></script>
+  <script src="../js/services/complaint.service.js"></script>
   <script src="../js/utils/constants.js"></script>
-  <script src="../js/components/sidebar.js"></script>
-  <script src="../js/components/toast.js"></script>
+  <script src="../components/sidebar.js"></script>
+  <script src="../components/toast.js"></script>
   <script>
-    if (!requireAuth() || !requireRole('citizen')) {}
+    let allComplaints = [];
+    let selectedStatGroup = '';
 
     function setGreeting() {
       const h = new Date().getHours();
       const user = getUser();
-      const name = user?.name?.split(' ')[0] || 'there';
+      const name = user?.name?.split(' ')[0] || 'Citizen';
       let g = 'Good evening';
       if (h < 12) g = 'Good morning';
       else if (h < 17) g = 'Good afternoon';
       document.getElementById('greeting').textContent = `${g}, ${name} 👋`;
     }
 
-    async function loadComplaints() {
-      const container = document.getElementById('complaintList');
-      container.innerHTML = createLoadingSkeleton(3, 'card');
-      try {
-        const filter = document.getElementById('statusFilter').value;
-        const params = {};
-        if (filter) params.status = filter;
-        const data = await getMyComplaints(params);
-        const complaints = data.complaints || data.data || data || [];
-        if (!complaints.length) {
-          container.innerHTML = `<div class="empty-state card" style="grid-column: 1/-1;">
-            <div style="width: 80px; height: 80px; border-radius: 20px; background: rgba(59,130,246,0.1); display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
-              <span class="material-symbols-outlined" style="font-size: 40px; color: var(--text-muted);">inbox</span>
-            </div>
-            <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px;">No complaints yet</h3>
-            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 20px;">Be the first to report an issue in your area.</p>
-            <a href="submit.html" class="btn btn-primary">Report an Issue</a>
-          </div>`;
-          return;
+    function calculateStats(complaints) {
+      const total = complaints.length;
+      const pending = complaints.filter(c => ['submitted', 'under_review'].includes(c.status)).length;
+      const inProgress = complaints.filter(c => ['assigned', 'in_progress'].includes(c.status)).length;
+      const resolved = complaints.filter(c => ['resolved', 'closed'].includes(c.status)).length;
+
+      document.getElementById('totalComplaints').textContent = total;
+      document.getElementById('pendingCount').textContent = pending;
+      document.getElementById('inProgressCount').textContent = inProgress;
+      document.getElementById('resolvedCount').textContent = resolved;
+    }
+
+    function selectStatFilter(group) {
+      selectedStatGroup = group;
+      
+      document.getElementById('statCardAll').classList.remove('active-stat');
+      document.getElementById('statCardPending').classList.remove('active-stat');
+      document.getElementById('statCardInProgress').classList.remove('active-stat');
+      document.getElementById('statCardResolved').classList.remove('active-stat');
+
+      if (group === '') document.getElementById('statCardAll').classList.add('active-stat');
+      else if (group === 'pending') document.getElementById('statCardPending').classList.add('active-stat');
+      else if (group === 'in_progress') document.getElementById('statCardInProgress').classList.add('active-stat');
+      else if (group === 'resolved') document.getElementById('statCardResolved').classList.add('active-stat');
+
+      applyFilters();
+    }
+
+    function resetFilters() {
+      document.getElementById('searchInput').value = '';
+      document.getElementById('statusFilter').value = '';
+      document.getElementById('categoryFilter').value = '';
+      selectStatFilter('');
+    }
+
+    function applyFilters() {
+      const query = document.getElementById('searchInput').value.toLowerCase().trim();
+      const status = document.getElementById('statusFilter').value;
+      const category = document.getElementById('categoryFilter').value;
+
+      let filtered = allComplaints.filter(c => {
+        // Stat Card Group Filter
+        if (selectedStatGroup === 'pending' && !['submitted', 'under_review'].includes(c.status)) return false;
+        if (selectedStatGroup === 'in_progress' && !['assigned', 'in_progress'].includes(c.status)) return false;
+        if (selectedStatGroup === 'resolved' && !['resolved', 'closed'].includes(c.status)) return false;
+
+        // Dropdown status filter
+        if (status && c.status !== status) return false;
+
+        // Category filter
+        if (category && c.category !== category) return false;
+
+        // Search query filter
+        if (query) {
+          const title = (c.title || c.description || '').toLowerCase();
+          const location = (c.location?.address || c.location || '').toLowerCase();
+          const cat = (c.category || '').toLowerCase();
+          const id = (c.trackingId || c._id || c.id || '').toLowerCase();
+          if (!title.includes(query) && !location.includes(query) && !cat.includes(query) && !id.includes(query)) {
+            return false;
+          }
         }
-        container.innerHTML = complaints.map(c => {
-          const status = getStatusConfig(c.status);
-          const severity = getSeverityConfig(c.severity);
-          const dept = getDepartment(c.department);
-          return `<div class="card card-hover" style="padding: 20px; cursor: pointer;" onclick="viewComplaint('${c._id || c.id}')">
-            <div style="display: flex; gap: 16px;">
-              <div style="width: 80px; height: 80px; border-radius: var(--radius-md); overflow: hidden; flex-shrink: 0; background: var(--bg-secondary);">
-                ${c.image ? `<img src="${c.image}" style="width: 100%; height: 100%; object-fit: cover;">` : `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;"><span class="material-symbols-outlined" style="color: var(--text-muted);">image</span></div>`}
-              </div>
-              <div style="flex: 1; min-width: 0;">
-                <div style="display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
-                  <span class="badge" style="background: rgba(107,114,128,0.12); color: #6B7280;">${c.category || 'General'}</span>
-                  <span class="badge" style="background: var(--severity-bg, rgba(59,130,246,0.12)); color: ${severity.color};">${severity.label}</span>
-                  <span class="badge" style="background: rgba(107,114,128,0.12); color: ${status.color};">${status.label}</span>
-                </div>
-                <h3 style="font-weight: 600; font-size: 0.95rem; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c.title || c.description?.substring(0, 60) + '...' || 'Complaint'}</h3>
-                <p style="color: var(--text-tertiary); font-size: 0.8rem; display: flex; align-items: center; gap: 4px;">
-                  <span class="material-symbols-outlined" style="font-size: 14px;">location_on</span>
-                  ${c.location?.address || c.location || 'Location not set'}
-                </p>
-                <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px;">${formatTimeAgo(c.createdAt)}</p>
-              </div>
-            </div>
-          </div>`;
-        }).join('');
-      } catch (err) {
-        container.innerHTML = '<div class="card" style="padding: 40px; text-align: center; grid-column: 1/-1;"><p style="color: var(--text-tertiary);">Failed to load complaints. Make sure the backend is running.</p></div>';
+        return true;
+      });
+
+      renderComplaintsList(filtered);
+    }
+
+    function getProgressPercentage(statusValue) {
+      switch (statusValue) {
+        case 'submitted': return 20;
+        case 'under_review': return 40;
+        case 'assigned': return 60;
+        case 'in_progress': return 80;
+        case 'resolved':
+        case 'closed': return 100;
+        default: return 10;
       }
     }
 
-    let currentComplaintId = null;
-    function viewComplaint(id) { currentComplaintId = id; window.location.href = `track.html?id=${id}`; }
+    function renderComplaintsList(complaints) {
+      const container = document.getElementById('complaintList');
+      const countEl = document.getElementById('resultCount');
+
+      countEl.textContent = `Showing ${complaints.length} of ${allComplaints.length} complaints`;
+
+      if (!complaints.length) {
+        container.innerHTML = `
+          <div class="empty-state card" style="grid-column: 1/-1; padding: 60px 20px; text-align: center;">
+            <div style="width: 80px; height: 80px; border-radius: 24px; background: rgba(59,130,246,0.1); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto;">
+              <span class="material-symbols-outlined" style="font-size: 42px; color: var(--primary-blue);">inbox</span>
+            </div>
+            <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 8px;">No complaints found</h3>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; max-width: 400px; margin: 0 auto 24px auto;">
+              ${allComplaints.length === 0 ? "You haven't submitted any complaints yet. Report an issue to help improve your neighborhood!" : "No complaints match your current search or filter criteria."}
+            </p>
+            ${allComplaints.length === 0 ? 
+              `<a href="submit.html" class="btn btn-primary" style="padding: 12px 24px;">
+                <span class="material-symbols-outlined">add_circle</span> Report an Issue
+              </a>` : 
+              `<button class="btn btn-secondary" onclick="resetFilters()">Clear Filters</button>`}
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = complaints.map(c => {
+        const status = getStatusConfig(c.status);
+        const severity = getSeverityConfig(c.severity);
+        const dept = getDepartment(c.department);
+        const progressPct = getProgressPercentage(c.status);
+        const trackingId = c.trackingId || (c._id ? `CIV-${c._id.substring(c._id.length - 6).toUpperCase()}` : 'CIV-8921');
+
+        return `
+          <div class="complaint-card" onclick="viewComplaint('${c._id || c.id}')">
+            <div>
+              <div style="display: flex; gap: 14px; margin-bottom: 16px;">
+                <div style="width: 72px; height: 72px; border-radius: 12px; overflow: hidden; flex-shrink: 0; background: var(--bg-primary); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: center;">
+                  ${c.image ? 
+                    `<img src="${c.image}" style="width: 100%; height: 100%; object-fit: cover;">` : 
+                    `<div style="display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-tertiary);">
+                      <span class="material-symbols-outlined" style="font-size: 28px; color: var(--primary-blue);">${dept?.icon || 'report_problem'}</span>
+                    </div>`}
+                </div>
+                <div style="flex: 1; min-width: 0;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--text-tertiary); font-weight: 600;">${trackingId}</span>
+                    <span class="badge" style="background: ${status.color}15; color: ${status.color}; font-weight: 600; font-size: 0.75rem; border: 1px solid ${status.color}30;">
+                      <span class="material-symbols-outlined" style="font-size: 13px; margin-right: 4px;">${status.icon}</span>
+                      ${status.label}
+                    </span>
+                  </div>
+                  <h3 style="font-weight: 700; font-size: 1rem; color: var(--text-primary); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    ${c.title || c.description?.substring(0, 50) + '...' || 'Civic Issue'}
+                  </h3>
+                  <p style="color: var(--text-tertiary); font-size: 0.8rem; display: flex; align-items: center; gap: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    <span class="material-symbols-outlined" style="font-size: 15px; color: var(--primary-blue);">location_on</span>
+                    ${c.location?.address || c.location || 'Location specified on map'}
+                  </p>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+                <span class="badge" style="background: rgba(107,114,128,0.12); color: var(--text-secondary); font-size: 0.75rem;">
+                  <span class="material-symbols-outlined" style="font-size: 13px; margin-right: 4px;">category</span>
+                  ${c.category || 'General'}
+                </span>
+                <span class="badge" style="background: ${severity.color}15; color: ${severity.color}; font-size: 0.75rem; font-weight: 600;">
+                  <span class="material-symbols-outlined" style="font-size: 13px; margin-right: 4px;">${severity.icon}</span>
+                  ${severity.label} Priority
+                </span>
+                ${dept ? `<span class="badge" style="background: rgba(59,130,246,0.1); color: var(--primary-blue); font-size: 0.75rem;">${dept.name?.split(' ')[0]}</span>` : ''}
+              </div>
+            </div>
+
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--text-tertiary);">
+                <span>Workflow Progress</span>
+                <span style="font-weight: 600; color: var(--text-secondary);">${progressPct}%</span>
+              </div>
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" style="width: ${progressPct}%; background: ${status.color};"></div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-subtle);">
+                <span style="font-size: 0.75rem; color: var(--text-tertiary); display: flex; align-items: center; gap: 4px;">
+                  <span class="material-symbols-outlined" style="font-size: 14px;">schedule</span>
+                  ${formatTimeAgo(c.createdAt)}
+                </span>
+                <span style="color: var(--primary-blue); font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 2px;">
+                  View & Track
+                  <span class="material-symbols-outlined" style="font-size: 16px;">arrow_forward</span>
+                </span>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    async function loadComplaints() {
+      const container = document.getElementById('complaintList');
+      container.innerHTML = `
+        <div class="card" style="grid-column: 1/-1; padding: 48px; text-align: center;">
+          <div class="spinner" style="margin: 0 auto 16px auto;"></div>
+          <p style="color: var(--text-secondary); font-size: 0.95rem;">Fetching your reported complaints...</p>
+        </div>`;
+
+      try {
+        const data = await getMyComplaints();
+        allComplaints = data.complaints || data.data || data || [];
+        calculateStats(allComplaints);
+        applyFilters();
+      } catch (err) {
+        console.error('Error loading complaints:', err);
+        container.innerHTML = `
+          <div class="card" style="grid-column: 1/-1; padding: 40px; text-align: center;">
+            <span class="material-symbols-outlined" style="font-size: 40px; color: var(--danger-red); margin-bottom: 12px;">cloud_off</span>
+            <h3 style="font-weight: 600; margin-bottom: 8px;">Unable to load complaints</h3>
+            <p style="color: var(--text-tertiary); font-size: 0.85rem; margin-bottom: 16px;">Please verify your network connection and ensure the backend server is active.</p>
+            <button class="btn btn-secondary" onclick="loadComplaints()">
+              <span class="material-symbols-outlined" style="font-size: 18px;">refresh</span> Retry
+            </button>
+          </div>`;
+      }
+    }
+
+    function viewComplaint(id) {
+      if (id) window.location.href = `track.html?id=${id}`;
+    }
 
     document.addEventListener('DOMContentLoaded', () => {
       requireAuth();
       requireRole('citizen');
       document.getElementById('sidebarContainer').innerHTML = renderSidebar('dashboard');
-      document.getElementById('topnavContainer').innerHTML = renderTopNav('Dashboard');
+      document.getElementById('topnavContainer').innerHTML = renderTopNav('Citizen Dashboard');
       setGreeting();
       loadComplaints();
     });
