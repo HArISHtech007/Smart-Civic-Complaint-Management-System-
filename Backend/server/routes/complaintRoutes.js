@@ -6,6 +6,7 @@ const {
   getComplaintById,
   updateComplaint,
   deleteComplaint,
+  getComplaintStats
 } = require('../controllers/complaintController');
 
 const { protect, authorize } = require('../middleware/authMiddleware');
@@ -30,6 +31,12 @@ router
     createComplaint
   )
   .get(getComplaints);
+
+// Named routes MUST be defined before /:id to preventExpress route collision
+router.get('/my', getComplaints);
+if (typeof getComplaintStats === 'function') {
+  router.get('/stats', getComplaintStats);
+}
 
 // Endpoint paths matching:
 // GET /api/complaints/:id

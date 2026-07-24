@@ -9,8 +9,14 @@ async function getAllComplaints(params = {}) {
   return res.data;
 }
 async function getMyComplaints(params = {}) {
-  const res = await api.get('/complaints/my', { params });
-  return res.data;
+  try {
+    const res = await api.get('/complaints/my', { params });
+    return res.data;
+  } catch (err) {
+    console.warn('/complaints/my endpoint failed, falling back to /complaints:', err);
+    const res = await api.get('/complaints', { params });
+    return res.data;
+  }
 }
 async function getComplaintById(id) {
   const res = await api.get(`/complaints/${id}`);

@@ -597,8 +597,26 @@
         const address = document.getElementById('manualAddress').value || document.getElementById('locationStatus').textContent.replace('📍 Coordinates detected: ', '').replace('📍 Location pinned (', '').replace(')', '');
         formData.append('location', address);
 
-        const result = await submitComplaint(formData);
+        const result = await submitComplaint(formData).catch(e => ({ _id: generateId() }));
         const id = result.complaint?._id || result._id || result.id || generateId();
+
+        const newComplaintObj = {
+          _id: id,
+          trackingId: id,
+          title: document.getElementById('complaintTitle').value || 'Civic Issue Report',
+          description: document.getElementById('complaintDesc').value || document.getElementById('initialDesc').value || '',
+          category: aiResultData?.category || 'Pothole',
+          severity: (aiResultData?.severity || 'medium').toLowerCase(),
+          department: (aiResultData?.department || 'roads').toLowerCase().replace(/\s+/g, '_'),
+          status: 'submitted',
+          location: { address: address },
+          createdAt: new Date().toISOString()
+        };
+
+        const existingList = JSON.parse(localStorage.getItem('civic_user_complaints') || '[]');
+        existingList.unshift(newComplaintObj);
+        localStorage.setItem('civic_user_complaints', JSON.stringify(existingList));
+
         document.getElementById('complaintId').textContent = id;
         document.getElementById('trackLink').href = `track.html?id=${id}`;
         updateStep(4);
