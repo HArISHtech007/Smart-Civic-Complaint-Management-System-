@@ -396,7 +396,7 @@
                   </h3>
                   <p style="color: var(--text-tertiary); font-size: 0.8rem; display: flex; align-items: center; gap: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                     <span class="material-symbols-outlined" style="font-size: 15px; color: var(--primary-blue);">location_on</span>
-                    ${c.location?.address || c.location || 'Location specified on map'}
+                    ${c.address || c.location?.address || (typeof c.location === 'string' ? c.location : '') || 'Location specified on map'}
                   </p>
                 </div>
               </div>
@@ -411,6 +411,11 @@
                   ${severity.label} Priority
                 </span>
                 ${dept ? `<span class="badge" style="background: rgba(59,130,246,0.1); color: var(--primary-blue); font-size: 0.75rem;">${dept.name?.split(' ')[0]}</span>` : ''}
+                ${(c.repetitionCount && c.repetitionCount > 1) || (c.supportCount && c.supportCount > 1) ? `
+                  <span class="badge" style="background: rgba(245,158,11,0.15); color: var(--warning-amber); border: 1px solid rgba(245,158,11,0.3); font-size: 0.75rem; font-weight: 700;">
+                    <span class="material-symbols-outlined" style="font-size: 13px; margin-right: 4px;">local_fire_department</span>
+                    ${c.repetitionCount || c.supportCount} Reports (100m radius)
+                  </span>` : ''}
               </div>
             </div>
 
@@ -428,14 +433,34 @@
                   <span class="material-symbols-outlined" style="font-size: 14px;">schedule</span>
                   ${formatTimeAgo(c.createdAt)}
                 </span>
-                <span style="color: var(--primary-blue); font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 2px;">
-                  View & Track
-                  <span class="material-symbols-outlined" style="font-size: 16px;">arrow_forward</span>
-                </span>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <button class="btn btn-ghost" style="padding: 4px 8px; color: var(--danger-red); font-size: 0.8rem; display: flex; align-items: center; gap: 4px;" title="Delete Complaint" onclick="event.stopPropagation(); deleteComplaintHandler('${trackingId}', '${c.title?.replace(/'/g, "\\'") || 'Complaint'}')">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">delete</span> Delete
+                  </button>
+                  <span style="color: var(--primary-blue); font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 2px;">
+                    View & Track
+                    <span class="material-symbols-outlined" style="font-size: 16px;">arrow_forward</span>
+                  </span>
+                </div>
               </div>
             </div>
           </div>`;
       }).join('');
+    }
+
+    async function deleteComplaintHandler(id, title) {
+      const confirmDelete = () => {
+        deleteComplaint(id).then(() => {
+          if (typeof toast !== 'undefined') toast.success(`Report ${id} deleted successfully`);
+          loadComplaints();
+        });
+      };
+
+      if (typeof showConfirmDialog === 'function') {
+        showConfirmDialog(`Are you sure you want to delete report "${title}" (${id})?`, confirmDelete);
+      } else if (confirm(`Are you sure you want to delete report "${title}" (${id})?`)) {
+        confirmDelete();
+      }
     }
 
     async function loadComplaints() {
@@ -469,50 +494,8 @@
         });
 
         allComplaints = Array.from(map.values());
-
-        // Default sample complaints fallback if no complaints exist yet
-        if (allComplaints.length === 0) {
-          allComplaints = [
-            {
-              _id: 'CIV-98A12',
-              trackingId: 'CIV-98A12',
-              title: 'Hazardous Pothole on Anna Salai Road',
-              description: 'Large hazardous pothole causing heavy traffic slowdown and potential vehicle damage near the junction.',
-              category: 'Pothole',
-              department: 'roads',
-              severity: 'high',
-              status: 'in_progress',
-              location: { address: 'Anna Salai, Near Thousand Lights, Chennai' },
-              createdAt: new Date(Date.now() - 3600000 * 5).toISOString()
-            },
-            {
-              _id: 'CIV-77B43',
-              trackingId: 'CIV-77B43',
-              title: 'Garbage Container Overflowing at Market Street',
-              description: 'Public waste bin not cleared for 2 days, causing foul smell and unhygienic conditions in commercial area.',
-              category: 'Garbage Overflow',
-              department: 'waste',
-              severity: 'critical',
-              status: 'submitted',
-              location: { address: 'Market Street, Block B, Chennai' },
-              createdAt: new Date(Date.now() - 3600000 * 24).toISOString()
-            },
-            {
-              _id: 'CIV-34C89',
-              trackingId: 'CIV-34C89',
-              title: 'Flickering Street Lamp Near School Zone',
-              description: 'Non-functional street lamp making the school crossing dark and unsafe for children during evening.',
-              category: 'Broken Street Light',
-              department: 'lighting',
-              severity: 'medium',
-              status: 'resolved',
-              location: { address: 'School Road, Sector 4, Chennai' },
-              createdAt: new Date(Date.now() - 3600000 * 72).toISOString()
-            }
-          ];
-        }
-
         calculateStats(allComplaints);
+        applyFilters();
         applyFilters();
       } catch (err) {
         console.error('Error loading complaints:', err);

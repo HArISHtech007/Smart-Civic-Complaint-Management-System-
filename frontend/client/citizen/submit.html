@@ -345,14 +345,14 @@
           </div>
 
           <div style="margin-bottom: 20px;">
-            <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 8px;">GPS Location Pin</label>
+            <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 8px;">GPS Location Pin (Verified - Non-Adjustable)</label>
             <div id="map"></div>
             <p style="font-size: 0.8rem; color: var(--text-tertiary); margin-top: 6px;" id="locationStatus">Detecting your coordinates...</p>
           </div>
 
           <div style="margin-bottom: 28px;">
-            <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;">Landmark or Street Address (Optional)</label>
-            <input type="text" id="manualAddress" class="input" style="width: 100%; padding: 12px 16px; border-radius: var(--radius-md);" placeholder="e.g. Opposite City Hospital, Main Street">
+            <label style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;">Verified Street Address (Auto-Detected)</label>
+            <input type="text" id="manualAddress" class="input" style="width: 100%; padding: 12px 16px; border-radius: var(--radius-md); background: rgba(148, 163, 184, 0.1); cursor: not-allowed;" readonly placeholder="GPS Verified Location Address">
           </div>
 
           <div style="display: flex; gap: 12px;">
@@ -584,34 +584,59 @@
       }
     }
 
+    async function reverseGeocode(lat, lng) {
+      try {
+        document.getElementById('locationStatus').textContent = `📍 Geocoding address for ${lat.toFixed(4)}, ${lng.toFixed(4)}...`;
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+        const data = await res.json();
+        if (data && data.display_name) {
+          const formattedAddress = data.display_name;
+          document.getElementById('manualAddress').value = formattedAddress;
+          document.getElementById('locationStatus').textContent = `📍 Address: ${formattedAddress}`;
+          return formattedAddress;
+        }
+      } catch (err) {
+        console.warn('Reverse geocoding offline:', err);
+      }
+      document.getElementById('locationStatus').textContent = `📍 Pinned at GPS: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      return `GPS Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+    }
+
     function goToStep3() {
       updateStep(3);
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(pos => {
           userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          document.getElementById('locationStatus').textContent = `📍 Coordinates detected: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
           initMap(userLocation.lat, userLocation.lng);
+          reverseGeocode(userLocation.lat, userLocation.lng);
         }, () => {
           userLocation = { lat: 13.0827, lng: 80.2707 };
-          document.getElementById('locationStatus').textContent = '📍 Location pinned (Chennai default)';
           initMap(13.0827, 80.2707);
+          reverseGeocode(13.0827, 80.2707);
         });
       } else {
         userLocation = { lat: 13.0827, lng: 80.2707 };
-        document.getElementById('locationStatus').textContent = '📍 Location pinned (Chennai default)';
         initMap(13.0827, 80.2707);
+        reverseGeocode(13.0827, 80.2707);
       }
     }
 
     function initMap(lat, lng) {
       if (!map) {
-        map = L.map('map').setView([lat, lng], 15);
+        map = L.map('map', {
+          scrollWheelZoom: false
+        }).setView([lat, lng], 15);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
       } else {
         map.setView([lat, lng], 15);
       }
+      updateMapMarker(lat, lng);
+    }
+
+    function updateMapMarker(lat, lng) {
       if (marker) map.removeLayer(marker);
-      marker = L.circleMarker([lat, lng], { radius: 12, fillColor: '#3B82F6', color: '#fff', weight: 3, opacity: 1, fillOpacity: 0.8 }).addTo(map);
+      marker = L.marker([lat, lng], { draggable: false }).addTo(map);
+      marker.bindPopup("<b>📍 GPS Verified Pin</b><br>Location locked to device coordinates").openPopup();
     }
 
     async function handleSubmitForm() {
@@ -627,37 +652,88 @@
         formData.append('category', aiResultData?.category || 'Pothole');
         formData.append('severity', (aiResultData?.severity || 'medium').toLowerCase());
         formData.append('department', (aiResultData?.department || 'roads').toLowerCase().replace(/\s+/g, '_'));
+        
         if (userLocation) {
           formData.append('lat', userLocation.lat);
           formData.append('lng', userLocation.lng);
+          formData.append('latitude', userLocation.lat);
+          formData.append('longitude', userLocation.lng);
         }
-        const address = document.getElementById('manualAddress').value || document.getElementById('locationStatus').textContent.replace('📍 Coordinates detected: ', '').replace('📍 Location pinned (', '').replace(')', '');
+        const address = document.getElementById('manualAddress').value || `GPS Location (${userLocation?.lat?.toFixed(4)}, ${userLocation?.lng?.toFixed(4)})`;
         formData.append('location', address);
+        formData.append('address', address);
 
         const result = await submitComplaint(formData).catch(e => ({ _id: generateId() }));
         const id = result.complaint?._id || result._id || result.id || generateId();
 
-        const newComplaintObj = {
-          _id: id,
-          trackingId: id,
-          title: document.getElementById('complaintTitle').value || 'Civic Issue Report',
-          description: document.getElementById('complaintDesc').value || document.getElementById('initialDesc').value || '',
-          category: aiResultData?.category || 'Pothole',
-          severity: (aiResultData?.severity || 'medium').toLowerCase(),
-          department: (aiResultData?.department || 'roads').toLowerCase().replace(/\s+/g, '_'),
-          status: 'submitted',
-          location: { address: address },
-          createdAt: new Date().toISOString()
-        };
+        function calcDistMeters(l1, g1, l2, g2) {
+          if (!l1 || !g1 || !l2 || !g2) return Infinity;
+          const R = 6371000;
+          const dLat = (l2 - l1) * Math.PI / 180;
+          const dLon = (g2 - g1) * Math.PI / 180;
+          const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(l1 * Math.PI / 180) * Math.cos(l2 * Math.PI / 180) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+          return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+        }
+
+        const currentLat = userLocation?.lat || null;
+        const currentLng = userLocation?.lng || null;
+        const currentCategory = aiResultData?.category || 'Pothole';
 
         const existingList = JSON.parse(localStorage.getItem('civic_user_complaints') || '[]');
-        existingList.unshift(newComplaintObj);
+        
+        // Find duplicate report within 100m
+        const nearbyIdx = existingList.findIndex(item => {
+          if (['resolved', 'closed', 'completed'].includes((item.status || '').toLowerCase())) return false;
+          const itemLat = item.lat || item.latitude || (item.location?.lat);
+          const itemLng = item.lng || item.longitude || (item.location?.lng);
+          const dist = calcDistMeters(currentLat, currentLng, itemLat, itemLng);
+          const catMatch = (item.category || '').toLowerCase() === currentCategory.toLowerCase();
+          return dist <= 100 || (dist <= 250 && catMatch);
+        });
+
+        let targetId = id;
+        let isMerged = false;
+
+        if (nearbyIdx !== -1) {
+          const targetObj = existingList[nearbyIdx];
+          targetObj.repetitionCount = (targetObj.repetitionCount || 1) + 1;
+          targetObj.supportCount = (targetObj.supportCount || 1) + 1;
+          if (targetObj.repetitionCount >= 3) targetObj.severity = 'high';
+          targetId = targetObj._id || targetObj.id || targetObj.trackingId;
+          isMerged = true;
+        } else {
+          const newComplaintObj = {
+            _id: id,
+            trackingId: id,
+            title: document.getElementById('complaintTitle').value || 'Civic Issue Report',
+            description: document.getElementById('complaintDesc').value || document.getElementById('initialDesc').value || '',
+            category: currentCategory,
+            severity: (aiResultData?.severity || 'medium').toLowerCase(),
+            department: (aiResultData?.department || 'roads').toLowerCase().replace(/\s+/g, '_'),
+            status: 'submitted',
+            repetitionCount: 1,
+            supportCount: 1,
+            lat: currentLat,
+            lng: currentLng,
+            location: { address: address, lat: currentLat, lng: currentLng },
+            createdAt: new Date().toISOString()
+          };
+          existingList.unshift(newComplaintObj);
+        }
+
         localStorage.setItem('civic_user_complaints', JSON.stringify(existingList));
 
-        document.getElementById('complaintId').textContent = id;
-        document.getElementById('trackLink').href = `track.html?id=${id}`;
+        document.getElementById('complaintId').textContent = targetId;
+        document.getElementById('trackLink').href = `track.html?id=${targetId}`;
         updateStep(4);
-        toast.success('Complaint submitted successfully!');
+        
+        if (isMerged) {
+          toast.success('Nearby duplicate issue detected within 100m! Added your report as community support.');
+        } else {
+          toast.success('Complaint submitted successfully!');
+        }
       } catch (err) {
         console.error('Submit complaint error:', err);
         const id = generateId();

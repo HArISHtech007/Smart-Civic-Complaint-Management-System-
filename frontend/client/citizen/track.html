@@ -57,6 +57,18 @@
             <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7;" id="complaintDescription">--</p>
           </div>
 
+          <div class="card" id="repetitionCard" style="padding: 20px 24px; background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25); display: none; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(245,158,11,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <span class="material-symbols-outlined" style="color: var(--warning-amber); font-size: 24px;">local_fire_department</span>
+              </div>
+              <div>
+                <h4 style="font-weight: 700; font-size: 0.98rem; margin-bottom: 2px; color: var(--text-primary);" id="repetitionTitle">Multiple Reports Detected (100m Radius)</h4>
+                <p style="color: var(--text-secondary); font-size: 0.84rem;" id="repetitionSub">Multiple citizens reported this issue within 100 meters.</p>
+              </div>
+            </div>
+          </div>
+
           <div class="card" style="padding: 32px;">
             <h3 style="font-weight: 600; margin-bottom: 24px;">Status Timeline</h3>
             <div class="timeline" id="timelineContainer"></div>
@@ -90,11 +102,23 @@
     async function loadComplaint() {
       const id = getQueryParam('id');
       if (!id) { document.getElementById('complaintId').textContent = 'No complaint ID provided'; return; }
+      
       try {
         const data = await getComplaintById(id);
         const c = data.complaint || data.data || data;
-        renderComplaint(c);
+        if (c && (c.title || c.category || c.lat || c.latitude)) {
+          renderComplaint(c);
+          return;
+        }
       } catch (err) {
+        console.warn('loadComplaint error:', err);
+      }
+
+      const localList = JSON.parse(localStorage.getItem('civic_user_complaints') || '[]');
+      const localFound = localList.find(c => c._id === id || c.id === id || c.trackingId === id);
+      if (localFound) {
+        renderComplaint(localFound);
+      } else {
         renderMockComplaint(id);
       }
     }
@@ -110,11 +134,26 @@
       document.getElementById('severityBadge').style.cssText = `background: ${severity.color}20; color: ${severity.color}; padding: 4px 14px; border-radius: 100px; font-size: 0.8rem; font-weight: 600;`;
       document.getElementById('complaintCategory').textContent = c.category || 'General';
       document.getElementById('complaintDept').textContent = c.department || 'Not assigned';
-      document.getElementById('complaintLocation').textContent = c.location?.address || c.location || '--';
+      document.getElementById('complaintLocation').textContent = c.address || c.location?.address || (typeof c.location === 'string' ? c.location : '') || '--';
       document.getElementById('complaintDate').textContent = formatDate(c.createdAt);
       document.getElementById('complaintDescription').textContent = c.description || 'No description provided.';
+
+      const count = c.repetitionCount || c.supportCount || 1;
+      const repCard = document.getElementById('repetitionCard');
+      if (repCard) {
+        if (count > 1) {
+          repCard.style.display = 'block';
+          document.getElementById('repetitionTitle').textContent = `High Community Impact: ${count} Reports (100m Radius)`;
+          document.getElementById('repetitionSub').textContent = `This exact issue has been reported by ${count} nearby citizens within 100 meters. Priority automatically updated!`;
+        } else {
+          repCard.style.display = 'none';
+        }
+      }
+
       renderTimeline(c.status, c.timeline || []);
-      if (c.lat && c.lng) initDetailMap(c.lat, c.lng);
+      const reportLat = c.latitude || c.lat || (c.location?.lat);
+      const reportLng = c.longitude || c.lng || (c.location?.lng);
+      if (reportLat && reportLng) initDetailMap(Number(reportLat), Number(reportLng));
       else initDetailMap(13.0827, 80.2707);
     }
 

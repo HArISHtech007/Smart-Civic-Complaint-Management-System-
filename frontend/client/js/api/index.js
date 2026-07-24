@@ -20,15 +20,18 @@ api.interceptors.response.use(
   error => {
     if (error.response) {
       if (error.response.status === 401) {
-        localStorage.removeItem('civic_token');
-        localStorage.removeItem('civic_role');
-        localStorage.removeItem('civic_user');
-        if (!window.location.pathname.includes('login.html') && !window.location.pathname.includes('index.html')) {
+        console.warn('API returned 401 Unauthorized:', error.config?.url);
+        // Only redirect to login if explicitly trying to log in or token is completely invalid
+        const token = localStorage.getItem('civic_token');
+        if (!token && !window.location.pathname.includes('login.html') && !window.location.pathname.includes('index.html')) {
+          localStorage.removeItem('civic_token');
+          localStorage.removeItem('civic_role');
+          localStorage.removeItem('civic_user');
           window.location.href = '/login.html';
         }
       }
       if (error.response.status === 403) {
-        window.location.href = '/403.html';
+        console.warn('API returned 403 Forbidden:', error.config?.url);
       }
     }
     return Promise.reject(error);

@@ -29,14 +29,18 @@ const createComplaint = asyncHandler(async (req, res) => {
     citizen: req.user._id,
   };
 
-  // Optional fields
+  // Handle latitude, longitude, and address fallbacks seamlessly
+  const reqLat = req.body.latitude || req.body.lat;
+  const reqLng = req.body.longitude || req.body.lng;
+  const reqAddr = req.body.address || req.body.location;
+
   if (priority) complaintData.priority = priority;
-  if (address) complaintData.address = address;
-  if (latitude !== undefined && latitude !== null && latitude !== '') {
-    complaintData.latitude = Number(latitude);
+  if (reqAddr) complaintData.address = reqAddr;
+  if (reqLat !== undefined && reqLat !== null && reqLat !== '') {
+    complaintData.latitude = Number(reqLat);
   }
-  if (longitude !== undefined && longitude !== null && longitude !== '') {
-    complaintData.longitude = Number(longitude);
+  if (reqLng !== undefined && reqLng !== null && reqLng !== '') {
+    complaintData.longitude = Number(reqLng);
   }
 
   // Handle uploaded beforeImage

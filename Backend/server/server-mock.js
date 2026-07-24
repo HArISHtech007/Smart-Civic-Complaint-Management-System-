@@ -136,16 +136,66 @@ User.create = async (userData) => {
   return newUser;
 };
 
+function getDistanceMeters(lat1, lon1, lat2, lon2) {
+  if (lat1 === null || lon1 === null || lat2 === null || lon2 === null || isNaN(lat1) || isNaN(lon1) || isNaN(lat2) || isNaN(lon2)) return Infinity;
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 // 3) Mock Complaint Model Methods
 Complaint.create = async (complaintData) => {
+  const rawLat = complaintData.latitude !== undefined ? complaintData.latitude : complaintData.lat;
+  const rawLng = complaintData.longitude !== undefined ? complaintData.longitude : complaintData.lng;
+  const rawAddr = typeof complaintData.address === 'string' ? complaintData.address : (typeof complaintData.location === 'string' ? complaintData.location : (complaintData.location?.address || ''));
+
+  const newLat = (rawLat !== undefined && rawLat !== null && rawLat !== '') ? Number(rawLat) : null;
+  const newLng = (rawLng !== undefined && rawLng !== null && rawLng !== '') ? Number(rawLng) : null;
+  const newCat = (complaintData.category || complaintData.aiPrediction?.category || '').toLowerCase();
+
+  // Check if there is an active complaint within 100 meters
+  const existingNearby = mockComplaints.find(c => {
+    if (['Completed', 'Closed', 'Resolved'].includes(c.status)) return false;
+    const dist = getDistanceMeters(newLat, newLng, c.latitude, c.longitude);
+    const existingCat = (c.category || c.aiPrediction?.category || '').toLowerCase();
+    const catMatch = !newCat || !existingCat || newCat === existingCat || c.department === complaintData.department;
+    return dist <= 100 && catMatch;
+  });
+
+  if (existingNearby) {
+    console.log(`[Mock DB Proximity Engine] Found duplicate report within 100m. Merging into complaint ${existingNearby._id}`);
+    existingNearby.repetitionCount = (existingNearby.repetitionCount || 1) + 1;
+    existingNearby.supportCount = (existingNearby.supportCount || 1) + 1;
+    if (!existingNearby.supports) existingNearby.supports = [];
+    existingNearby.supports.push({
+      citizen: complaintData.citizen,
+      createdAt: new Date(),
+      image: complaintData.beforeImage || ''
+    });
+
+    if (existingNearby.repetitionCount >= 3) {
+      existingNearby.priority = 'High';
+    }
+    existingNearby.updatedAt = new Date();
+    return populateDoc(existingNearby);
+  }
+
   const newComplaint = {
     _id: 'mock-comp-' + Math.random().toString(36).substr(2, 9),
     ...complaintData,
+    repetitionCount: 1,
+    supportCount: 1,
+    supports: [],
     priority: complaintData.priority || 'Medium',
     status: complaintData.status || 'Pending',
-    latitude: complaintData.latitude || null,
-    longitude: complaintData.longitude || null,
-    address: complaintData.address || '',
+    latitude: newLat,
+    longitude: newLng,
+    address: rawAddr,
     beforeImage: complaintData.beforeImage || '',
     afterImage: complaintData.afterImage || '',
     aiPrediction: complaintData.aiPrediction || {},
