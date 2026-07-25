@@ -185,7 +185,12 @@ function requireRole(...roles) {
   const userRole = getRole();
   const normalizedAllowed = roles.map(r => r.toLowerCase().trim());
 
-  if (!normalizedAllowed.includes(userRole) && !(userRole === 'officer' && normalizedAllowed.includes('field_officer'))) {
+  const isAllowed = normalizedAllowed.includes(userRole) ||
+    (userRole === 'officer' && (normalizedAllowed.includes('field_officer') || normalizedAllowed.includes('officer'))) ||
+    (userRole === 'head_officer' && (normalizedAllowed.includes('headofficer') || normalizedAllowed.includes('head_officer'))) ||
+    (userRole === 'admin');
+
+  if (!isAllowed) {
     console.warn(`Access denied for role ${userRole}. Redirecting...`);
     window.location.href = getRedirectUrl(userRole);
     return false;

@@ -1,6 +1,38 @@
+function isSameDeptSidebar(officerDept, complaintDept) {
+  if (!officerDept || officerDept === '' || officerDept.toLowerCase().includes('general')) return true;
+  const o = officerDept.toLowerCase().trim();
+  const c = (complaintDept || '').toLowerCase().trim();
+
+  if (o.includes('road') && (c.includes('road') || c.includes('pothole'))) return true;
+  if ((o.includes('waste') || o.includes('sanitat')) && (c.includes('waste') || c.includes('sanitat') || c.includes('garbage'))) return true;
+  if ((o.includes('water') || o.includes('drain')) && (c.includes('water') || c.includes('drain') || c.includes('leak'))) return true;
+  if ((o.includes('light') || o.includes('electric')) && (c.includes('light') || c.includes('electric') || c.includes('lamp'))) return true;
+  if ((o.includes('tree') || o.includes('park')) && (c.includes('tree') || c.includes('park'))) return true;
+  if ((o.includes('town') || o.includes('plan')) && (c.includes('town') || c.includes('plan'))) return true;
+
+  return o.includes(c) || c.includes(o);
+}
+
 function getSidebarComplaintStats() {
   try {
-    const list = JSON.parse(localStorage.getItem('civic_user_complaints') || '[]');
+    let list = JSON.parse(localStorage.getItem('civic_user_complaints') || '[]');
+    const role = (getRole() || '').toLowerCase();
+
+    // Filter complaint stats based on Officer Department
+    if (role === 'officer' || role === 'field_officer' || role === 'head_officer') {
+      const user = getUser() || {};
+      const officerDept = user.department || localStorage.getItem('civic_officer_dept') || '';
+      if (officerDept) {
+        list = list.filter(c => isSameDeptSidebar(officerDept, c.department));
+      }
+    } else if (role === 'citizen') {
+      const user = getUser() || {};
+      const userId = user._id || user.id || user.email;
+      if (userId) {
+        list = list.filter(c => (c.userId === userId) || (c.citizenEmail && user.email && c.citizenEmail.toLowerCase() === user.email.toLowerCase()));
+      }
+    }
+
     const total = list.length;
     const resolved = list.filter(c => ['resolved', 'closed', 'completed'].includes((c.status || '').toLowerCase())).length;
     const pending = Math.max(0, total - resolved);
@@ -115,7 +147,6 @@ function renderTopNav(title) {
     <header style="height: var(--topnav-height); background: var(--bg-secondary); border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; padding: 0 var(--space-lg); position: sticky; top: 0; z-index: 50;">
       <h2 style="font-size: var(--text-lg); font-weight: 700; color: var(--text-primary);">${title}</h2>
       <div style="display: flex; align-items: center; gap: 12px;">
-        <!-- Light / Dark Theme Switcher Button -->
         <button onclick="toggleTheme()" id="themeToggleBtn" title="Toggle Light / Dark Theme" style="color: ${themeColor}; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: transparent; border: 1px solid var(--border-subtle); cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(148,163,184,0.1)'" onmouseout="this.style.background='transparent'">
           <span class="material-symbols-outlined" id="themeToggleIcon" style="font-size: 20px;">${themeIcon}</span>
         </button>
