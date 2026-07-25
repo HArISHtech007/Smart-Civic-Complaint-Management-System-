@@ -95,7 +95,18 @@
         title: 'Add Department',
         content: `<div class="floating-label-group"><input type="text" id="deptName" class="input" placeholder=" "><label>Department Name</label></div>`,
         confirmText: 'Create',
-        onConfirm: async (close) => { toast.success('Department created'); close(); loadDepartments(); }
+        onConfirm: async (close) => {
+          const name = document.getElementById('deptName')?.value?.trim();
+          if (!name) { toast.error('Please enter a department name'); return; }
+          try {
+            await createDepartment({ name });
+            toast.success(`Department "${name}" created!`);
+            close();
+            loadDepartments();
+          } catch (err) {
+            toast.error(err?.response?.data?.message || 'Failed to create department');
+          }
+        }
       });
     }
 

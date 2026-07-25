@@ -74,6 +74,7 @@
   <script src="../js/api/index.js"></script>
   <script src="../js/services/auth.service.js"></script>
   <script src="../js/services/user.service.js"></script>
+  <script src="../js/services/department.service.js"></script>
   <script src="../js/utils/constants.js"></script>
   <script src="../js/utils/utils.js"></script>
   <script src="../components/sidebar.js"></script>
@@ -110,30 +111,30 @@
           return;
         }
 
-        grid.innerHTML = users.map(u => {
-          const initials = (u.name || 'User').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-          const deptTag = u.department ? `<span class="badge" style="background: rgba(59,130,246,0.1); color: var(--primary-blue); font-size: 0.72rem; margin-top: 4px;">${u.department}</span>` : '';
-
-          return `
-            <div class="user-card">
-              <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 1rem; flex-shrink: 0; box-shadow: 0 4px 10px rgba(59,130,246,0.25);">
-                ${initials}
+        grid.innerHTML = users.map(u => `
+          <div class="user-card">
+            <div style="width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 1.1rem; flex-shrink: 0;">
+              ${u.name ? u.name.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 2px;">
+                <p style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${u.name}</p>
+                <span class="badge" style="background: rgba(59, 130, 246, 0.12); color: var(--primary-blue); font-size: 0.7rem; text-transform: capitalize;">${(u.role || 'citizen').replace('_', ' ')}</span>
               </div>
-              <div style="flex: 1; min-width: 0;">
-                <h3 style="font-weight: 700; font-size: 0.98rem; color: var(--text-primary); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${u.name || 'User Account'}</h3>
-                <p style="color: var(--text-tertiary); font-size: 0.82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${u.email || ''}</p>
-                ${u.phone ? `<p style="color: var(--text-muted); font-size: 0.76rem; margin-top: 2px; display: flex; align-items: center; gap: 4px;"><span class="material-symbols-outlined" style="font-size: 13px;">call</span> ${u.phone}</p>` : ''}
-                ${deptTag}
-              </div>
-              <div style="display: flex; gap: 4px;">
-                <button class="btn btn-ghost" style="padding: 6px; color: var(--text-secondary);" title="Edit User" onclick="toast.info('Edit ${u.name}')"><span class="material-symbols-outlined" style="font-size: 18px;">edit</span></button>
-                <button class="btn btn-ghost" style="padding: 6px; color: var(--danger-red);" title="Delete User" onclick="deleteUserHandler('${u._id}', '${u.name}')"><span class="material-symbols-outlined" style="font-size: 18px;">delete</span></button>
-              </div>
-            </div>`;
-        }).join('');
+              <p style="color: var(--text-tertiary); font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${u.email}</p>
+              ${u.department ? `<p style="color: var(--primary-purple); font-size: 0.75rem; font-weight: 600; margin-top: 4px;">🏢 ${u.department}</p>` : ''}
+            </div>
+            <button class="btn btn-ghost" style="padding: 6px; color: var(--danger-red); flex-shrink: 0;" title="Delete User" onclick="deleteUserHandler('${u._id || u.id}', '${u.name}')">
+              <span class="material-symbols-outlined" style="font-size: 20px;">delete</span>
+            </button>
+          </div>
+        `).join('');
       } catch (err) {
-        console.error('Users load error:', err);
-        grid.innerHTML = `<div class="card" style="padding: 40px; text-align: center; grid-column: 1/-1;"><p style="color: var(--danger-red);">Failed to load user list. Please refresh.</p></div>`;
+        console.error('Error loading users:', err);
+        grid.innerHTML = `
+          <div class="card" style="padding: 40px; text-align: center; grid-column: 1/-1; color: var(--danger-red);">
+            <p style="font-weight: 600;">Failed to load user accounts.</p>
+          </div>`;
       }
     }
 
@@ -145,7 +146,30 @@
       });
     }
 
-    function showAddUserModal() {
+    async function showAddUserModal() {
+      let deptOptionsHtml = '';
+      try {
+        const res = await getDepartments();
+        const depts = res.departments || res.data || (Array.isArray(res) ? res : []);
+        if (depts && depts.length > 0) {
+          deptOptionsHtml = depts.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+        }
+      } catch (err) {
+        console.warn('Failed to fetch departments dynamically:', err);
+      }
+
+      if (!deptOptionsHtml) {
+        const defaultDepts = [
+          'Electricity Board Department (EB)',
+          'Roads & Highways Department',
+          'Solid Waste Management',
+          'Water Supply & Drainage Board',
+          'Street Lighting Department',
+          'General Administration'
+        ];
+        deptOptionsHtml = defaultDepts.map(d => `<option value="${d}">${d}</option>`).join('');
+      }
+
       renderModal({
         title: 'Add New User Account',
         content: `
@@ -164,13 +188,7 @@
             <div>
               <label style="font-size: 0.8rem; color: var(--text-tertiary); display: block; margin-bottom: 6px;">Department Selection</label>
               <select id="newDepartment" class="input" style="width: 100%;">
-                <option value="Roads & Highways">Roads & Highways Department</option>
-                <option value="Solid Waste Management">Solid Waste Management</option>
-                <option value="Water Supply & Drainage">Water Supply & Drainage Board</option>
-                <option value="Street Lighting">Street Lighting Department</option>
-                <option value="Parks & Horticulture">Parks & Horticulture Department</option>
-                <option value="Town Planning">Town Planning Department</option>
-                <option value="General Administration">General Administration</option>
+                ${deptOptionsHtml}
               </select>
             </div>
           </div>`,
