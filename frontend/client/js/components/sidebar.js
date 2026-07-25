@@ -10,6 +10,34 @@ function getSidebarComplaintStats() {
   }
 }
 
+function getActiveTheme() {
+  return localStorage.getItem('civic_theme') || 'dark';
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.body.setAttribute('data-theme', theme);
+  localStorage.setItem('civic_theme', theme);
+
+  const icon = document.getElementById('themeToggleIcon');
+  if (icon) {
+    icon.textContent = theme === 'light' ? 'light_mode' : 'dark_mode';
+    icon.style.color = theme === 'light' ? '#F59E0B' : 'var(--text-secondary)';
+  }
+}
+
+function toggleTheme() {
+  const current = getActiveTheme();
+  const next = current === 'light' ? 'dark' : 'light';
+  applyTheme(next);
+}
+
+// Auto-run theme initialization
+(function initThemeImmediate() {
+  const theme = localStorage.getItem('civic_theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', theme);
+})();
+
 function renderSidebar(activePage) {
   const role = getRole();
   const stats = getSidebarComplaintStats();
@@ -47,7 +75,7 @@ function renderSidebar(activePage) {
         <div style="width: 36px; height: 36px; border-radius: var(--radius-md); background: linear-gradient(135deg, var(--primary-blue), var(--primary-purple)); display: flex; align-items: center; justify-content: center;">
           <span class="material-symbols-outlined" style="font-size: 20px; color: white;">account_balance</span>
         </div>
-        <span style="font-weight: 700; font-size: var(--text-lg);">Civic Voice</span>
+        <span style="font-weight: 700; font-size: var(--text-lg); color: var(--text-primary);">Civic Voice</span>
       </div>
       <nav style="flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto;">
         ${items.map(item => `
@@ -79,14 +107,24 @@ function renderSidebar(activePage) {
 
 function renderTopNav(title) {
   const user = getUser();
+  const currentTheme = getActiveTheme();
+  const themeIcon = currentTheme === 'light' ? 'light_mode' : 'dark_mode';
+  const themeColor = currentTheme === 'light' ? '#F59E0B' : 'var(--text-secondary)';
+
   return `
     <header style="height: var(--topnav-height); background: var(--bg-secondary); border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; padding: 0 var(--space-lg); position: sticky; top: 0; z-index: 50;">
-      <h2 style="font-size: var(--text-lg); font-weight: 700;">${title}</h2>
-      <div style="display: flex; align-items: center; gap: 16px;">
-        <button style="position: relative; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%;" onmouseover="this.style.background='rgba(148,163,184,0.1)'" onmouseout="this.style.background='transparent'">
+      <h2 style="font-size: var(--text-lg); font-weight: 700; color: var(--text-primary);">${title}</h2>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <!-- Light / Dark Theme Switcher Button -->
+        <button onclick="toggleTheme()" id="themeToggleBtn" title="Toggle Light / Dark Theme" style="color: ${themeColor}; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: transparent; border: 1px solid var(--border-subtle); cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(148,163,184,0.1)'" onmouseout="this.style.background='transparent'">
+          <span class="material-symbols-outlined" id="themeToggleIcon" style="font-size: 20px;">${themeIcon}</span>
+        </button>
+
+        <button style="position: relative; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: transparent; border: 1px solid var(--border-subtle); cursor: pointer;" onmouseover="this.style.background='rgba(148,163,184,0.1)'" onmouseout="this.style.background='transparent'">
           <span class="material-symbols-outlined" style="font-size: 20px;">notifications</span>
           <span style="position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; background: var(--danger-red); border-radius: 50%;"></span>
         </button>
+
         <div style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
           <div style="width: 34px; height: 34px; border-radius: 50%; background: var(--primary-blue); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: var(--text-sm);">
             ${user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
