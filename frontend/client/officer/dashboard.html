@@ -71,80 +71,406 @@
   <script src="../js/services/auth.service.js"></script>
   <script src="../js/services/complaint.service.js"></script>
   <script src="../js/utils/constants.js"></script>
+  <script src="../js/utils/utils.js"></script>
   <script src="../js/components/sidebar.js"></script>
+  <script src="../js/components/modal.js"></script>
   <script src="../js/components/toast.js"></script>
   <script>
-    if (!requireAuth()) { window.location.href = '/login.html'; }
+    if (!requireRole('officer', 'field_officer')) { }
+
+    function isSameDepartment(officerDept, complaintDept) {
+      if (!officerDept || officerDept === '' || officerDept.toLowerCase().includes('general')) return true;
+      const o = officerDept.toLowerCase().trim();
+      const c = (complaintDept || '').toLowerCase().trim();
+      if (o.includes('road') && (c.includes('road') || c.includes('pothole'))) return true;
+      if ((o.includes('waste') || o.includes('sanitat')) && (c.includes('waste') || c.includes('sanitat') || c.includes('garbage'))) return true;
+      if ((o.includes('water') || o.includes('drain')) && (c.includes('water') || c.includes('drain') || c.includes('leak'))) return true;
+      if ((o.includes('light') || o.includes('electric')) && (c.includes('light') || c.includes('electric') || c.includes('lamp'))) return true;
+      if ((o.includes('tree') || o.includes('park')) && (c.includes('tree') || c.includes('park'))) return true;
+      if ((o.includes('town') || o.includes('plan')) && (c.includes('town') || c.includes('plan'))) return true;
+      return o.includes(c) || c.includes(o);
+    }
 
     async function loadQueue() {
       const container = document.getElementById('officerQueue');
-      container.innerHTML = createLoadingSkeleton(4, 'card');
+      container.innerHTML = (typeof createLoadingSkeleton === 'function') ?
+        createLoadingSkeleton(4, 'card') :
+        '<div class="card" style="padding: 40px; text-align: center;"><div class="spinner" style="margin: 0 auto 12px auto;"></div><p style="color: var(--text-tertiary);">Loading department queue...</p></div>';
       try {
-        const filter = document.getElementById('officerFilter').value;
-        const params = { assigned: true };
-        if (filter) params.severity = filter;
-        const data = await getAllComplaints(params);
-        const complaints = data.complaints || data.data || data || [];
-        renderQueue(complaints);
+        const filter = document.getElementById('officerFilter')?.value || '';
+        const user = getUser() || {};
+        const officerDept = user.department || localStorage.getItem('civic_officer_dept') || '';
+        const data = await getAllComplaints();
+        let complaints = data.complaints || data.data || (Array.isArray(data) ? data : []);
+        complaints = complaints.filter(c => {
+          const matchDept = isSameDepartment(officerDept, c.department);
+          const matchSev = !filter || (c.severity || '').toLowerCase() === filter.toLowerCase();
+          return matchDept && matchSev;
+        });
+        renderQueue(complaints, officerDept);
       } catch (err) {
-        renderMockQueue();
+        console.error('Error loading officer queue:', err);
+        renderQueue([], '');
       }
     }
 
-    function renderQueue(complaints) {
+    function renderOfficerActionButtons(id, status) {
+      const st = (status || '').toLowerCase();
+      if (['resolved', 'closed', 'completed'].includes(st)) {
+        return `<div style="width: 100%; padding: 10px 14px; border-radius: var(--radius-md); background: rgba(16,185,129,0.15); color: var(--success-green); text-align: center; font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 6px;">
+          <span class="material-symbols-outlined" style="font-size: 18px;">task_alt</span> Work Completed & Resolved
+        </div>`;
+      }
+      if (['in_progress', 'assigned'].includes(st)) {
+        return `<div style="display: flex; gap: 8px; width: 100%;">
+          <div style="flex: 1; padding: 8px 10px; border-radius: var(--radius-md); background: rgba(59,130,246,0.15); color: var(--primary-blue); text-align: center; font-weight: 700; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 4px;">
+            <span class="material-symbols-outlined" style="font-size: 16px;">autorenew</span> Active In Progress
+          </div>
+          <button class="btn btn-primary" style="flex: 1; padding: 8px; font-weight: 700; font-size: 0.8rem;" onclick="event.stopPropagation(); resolveComplaintModal('${id}')">
+            <span class="material-symbols-outlined" style="font-size: 16px;">task_alt</span> Resolve Issue
+          </button>
+        </div>`;
+      }
+      return `<div style="display: flex; gap: 8px; width: 100%;">
+        <button class="btn btn-success" style="flex: 1; padding: 8px; font-weight: 700; font-size: 0.8rem;" onclick="event.stopPropagation(); acceptComplaint('${id}')">
+          <span class="material-symbols-outlined" style="font-size: 16px;">check</span> Accept & Start
+        </button>
+        <button class="btn btn-primary" style="flex: 1; padding: 8px; font-weight: 700; font-size: 0.8rem;" onclick="event.stopPropagation(); resolveComplaintModal('${id}')">
+          <span class="material-symbols-outlined" style="font-size: 16px;">task_alt</span> Resolve Issue
+        </button>
+      </div>`;
+    }
+
+    function renderQueue(complaints, officerDept) {
       const container = document.getElementById('officerQueue');
       if (!complaints.length) {
-        container.innerHTML = '<div class="card" style="padding: 60px; text-align: center; grid-column: 1/-1;"><p style="color: var(--text-tertiary);">No complaints assigned yet.</p></div>';
+        container.innerHTML = `<div class="card" style="padding: 48px 20px; text-align: center; grid-column: 1/-1;">
+          <span class="material-symbols-outlined" style="font-size: 40px; color: var(--text-tertiary); margin-bottom: 12px;">task_alt</span>
+          <h3 style="font-weight: 700; font-size: 1.05rem; margin-bottom: 4px;">Queue Clear</h3>
+          <p style="color: var(--text-tertiary); font-size: 0.88rem;">No pending complaints found for ${officerDept || 'your department'}.</p>
+        </div>`;
         return;
       }
       container.innerHTML = complaints.map(c => {
+        const id = c.trackingId || c._id || c.id || 'CIV-00000';
         const severity = getSeverityConfig(c.severity);
-        return `<div class="card card-hover" style="padding: 20px; cursor: pointer;" onclick="openDetail('${c._id || c.id}')">
+        const status = getStatusConfig(c.status);
+        const repTag = (c.repetitionCount && c.repetitionCount > 1) ? `<span class="badge" style="background: rgba(245,158,11,0.15); color: var(--warning-amber); font-size: 0.7rem; font-weight: 700;">🔥 ${c.repetitionCount} Reports</span>` : '';
+        return `<div class="card card-hover" style="padding: 20px; cursor: pointer;" onclick="openDetail('${id}')">
           <div style="display: flex; gap: 12px; margin-bottom: 12px;">
-            <div style="width: 60px; height: 60px; border-radius: var(--radius-md); overflow: hidden; flex-shrink: 0; background: var(--bg-secondary);">
-              ${c.image ? `<img src="${c.image}" style="width: 100%; height: 100%; object-fit: cover;">` : `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;"><span class="material-symbols-outlined" style="color: var(--text-muted);">image</span></div>`}
+            <div style="width: 60px; height: 60px; border-radius: var(--radius-md); overflow: hidden; flex-shrink: 0; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center;">
+              ${c.beforeImage || c.image ? `<img src="${c.beforeImage || c.image}" style="width: 100%; height: 100%; object-fit: cover;">` : `<span class="material-symbols-outlined" style="color: var(--primary-blue); font-size: 28px;">report_problem</span>`}
             </div>
             <div style="flex: 1; min-width: 0;">
-              <div style="display: flex; gap: 4px; margin-bottom: 6px;">
-                <span class="badge" style="background: ${severity.color}20; color: ${severity.color}; font-size: 0.7rem;">${severity.label}</span>
+              <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px;">
+                <span class="badge" style="background: ${severity.color}20; color: ${severity.color}; font-size: 0.7rem; font-weight: 600;">${severity.label}</span>
                 <span class="badge" style="background: rgba(107,114,128,0.12); color: #6B7280; font-size: 0.7rem;">${c.category || 'General'}</span>
+                ${repTag}
               </div>
-              <p style="font-weight: 500; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c.title || c.description?.substring(0, 50) || 'Complaint'}</p>
-              <p style="color: var(--text-tertiary); font-size: 0.8rem;">${c.location?.address || c.location || 'Location N/A'}</p>
+              <p style="font-weight: 700; font-size: 0.95rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c.title || c.description?.substring(0, 40) || 'Complaint'}</p>
+              <p style="color: var(--text-tertiary); font-size: 0.8rem; display: flex; align-items: center; gap: 4px; margin-top: 2px;">
+                <span class="material-symbols-outlined" style="font-size: 14px; color: var(--primary-blue);">location_on</span>
+                ${c.address || c.location?.address || (typeof c.location === 'string' ? c.location : '') || 'Location Pinned'}
+              </p>
             </div>
           </div>
-          <div style="display: flex; gap: 8px;">
-            <button class="btn btn-success" style="flex: 1; padding: 8px; font-size: 0.8rem;" onclick="event.stopPropagation();acceptComplaint('${c._id || c.id}')">
-              <span class="material-symbols-outlined" style="font-size: 16px;">check</span>
-              Accept
-            </button>
-            <button class="btn btn-secondary" style="flex: 1; padding: 8px; font-size: 0.8rem;" onclick="event.stopPropagation();">
-              <span class="material-symbols-outlined" style="font-size: 16px;">close</span>
-              Reject
-            </button>
-          </div>
+          ${renderOfficerActionButtons(id, c.status)}
         </div>`;
       }).join('');
     }
 
-    function renderMockQueue() {
-      const mock = [
-        { title: 'Pothole on Anna Salai', severity: 'critical', category: 'Pothole', location: 'Anna Salai, Chennai', id: '1' },
-        { title: 'Garbage pileup in Ward 12', severity: 'high', category: 'Garbage', location: 'Ward 12, T Nagar', id: '2' },
-        { title: 'Water leakage on 2nd Street', severity: 'medium', category: 'Water Leakage', location: '2nd Street, Velachery', id: '3' },
-        { title: 'Street light not working', severity: 'low', category: 'Lighting', location: 'Park Road, Egmore', id: '4' }
-      ];
-      renderQueue(mock);
+    let cameraStream = null;
+    let capturedPhotoBlob = null;
+
+    function handleCameraFileUpload(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      capturedPhotoBlob = file;
+      const img = document.getElementById('capturedPhoto');
+      img.src = URL.createObjectURL(file);
+      img.style.display = 'block';
+      document.getElementById('cameraPlaceholder').style.display = 'none';
+      document.getElementById('cameraActions').style.display = 'none';
+      document.getElementById('cameraPreview').style.display = 'none';
+      document.getElementById('retakeBtn').style.display = 'inline-flex';
     }
 
-    function openDetail(id) { document.getElementById('detailPanel').classList.add('open'); }
+    async function startCamera() {
+      const video = document.getElementById('cameraPreview');
+      const placeholder = document.getElementById('cameraPlaceholder');
+      const actions = document.getElementById('cameraActions');
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 720 } });
+        video.srcObject = cameraStream;
+        video.style.display = 'block';
+        placeholder.style.display = 'none';
+        actions.style.display = 'flex';
+        await video.play();
+      } catch (err) {
+        console.error('Camera access denied:', err);
+        if (typeof toast !== 'undefined') toast.error('Camera access denied. Please allow camera permissions or use file upload.');
+      }
+    }
 
-    function closePanel() { document.getElementById('detailPanel').classList.remove('open'); }
+    function capturePhoto() {
+      const video = document.getElementById('cameraPreview');
+      const canvas = document.getElementById('cameraCanvas');
+      const img = document.getElementById('capturedPhoto');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      canvas.toBlob((blob) => {
+        capturedPhotoBlob = new File([blob], `after_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        img.src = URL.createObjectURL(capturedPhotoBlob);
+        img.style.display = 'block';
+        video.style.display = 'none';
+        stopCamera();
+        document.getElementById('cameraActions').style.display = 'none';
+        document.getElementById('retakeBtn').style.display = 'inline-flex';
+      }, 'image/jpeg', 0.92);
+    }
+
+    function retakePhoto() {
+      capturedPhotoBlob = null;
+      document.getElementById('capturedPhoto').style.display = 'none';
+      document.getElementById('retakeBtn').style.display = 'none';
+      document.getElementById('cameraPlaceholder').style.display = 'flex';
+    }
+
+    function stopCamera() {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(t => t.stop());
+        cameraStream = null;
+      }
+    }
+
+    function resolveComplaintModal(id) {
+      capturedPhotoBlob = null;
+      if (typeof renderModal === 'function') {
+        renderModal({
+          title: `Resolve Complaint #${id}`,
+          content: `<div style="display: flex; flex-direction: column; gap: 16px;">
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">Mark this complaint as resolved and complete work.</p>
+            <div>
+              <label style="font-size: 0.82rem; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;">After Photo (Evidence)</label>
+              <div id="cameraContainer" style="border-radius: var(--radius-md); overflow: hidden; background: var(--bg-primary); border: 2px dashed var(--border-subtle); min-height: 180px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; position: relative;">
+                <video id="cameraPreview" autoplay playsinline style="width: 100%; display: none; border-radius: var(--radius-md);"></video>
+                <canvas id="cameraCanvas" style="display: none;"></canvas>
+                <img id="capturedPhoto" style="width: 100%; display: none; border-radius: var(--radius-md); object-fit: cover; max-height: 240px;">
+                <div id="cameraPlaceholder" style="text-align: center; padding: 20px; display: flex; flex-direction: column; align-items: center;">
+                  <span class="material-symbols-outlined" style="font-size: 40px; color: var(--text-tertiary);">photo_camera</span>
+                  <p style="color: var(--text-tertiary); font-size: 0.85rem; margin-top: 8px;">Capture after-photo as proof of resolution</p>
+                  <button type="button" class="btn btn-secondary" style="margin-top: 12px;" onclick="startCamera()">
+                    <span class="material-symbols-outlined">camera_alt</span> Open Camera
+                  </button>
+
+                </div>
+                <div id="cameraActions" style="display: none; gap: 8px; position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 2;">
+                  <button type="button" class="btn btn-primary" onclick="capturePhoto()">
+                    <span class="material-symbols-outlined">camera</span> Capture
+                  </button>
+                  <button type="button" class="btn btn-ghost" onclick="stopCamera(); startCamera();">
+                    <span class="material-symbols-outlined">refresh</span> Retake
+                  </button>
+                </div>
+                <button type="button" id="retakeBtn" class="btn btn-ghost" style="display: none; margin-top: 8px;" onclick="retakePhoto()">
+                  <span class="material-symbols-outlined">refresh</span> Retake Photo
+                </button>
+              </div>
+            </div>
+            <div>
+              <label style="font-size: 0.82rem; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 6px;">Resolution Notes</label>
+              <textarea id="resNotes" class="description-textarea" rows="3" placeholder="Describe maintenance work completed..."></textarea>
+            </div>
+          </div>`,
+          confirmText: 'Mark Resolved',
+          onConfirm: async (close) => {
+            const notes = document.getElementById('resNotes')?.value || '';
+            close();
+            await updateComplaintStatus(id, 'resolved', notes, capturedPhotoBlob);
+            capturedPhotoBlob = null;
+            stopCamera();
+            if (typeof toast !== 'undefined') toast.success(`Complaint #${id} marked resolved!`);
+            loadQueue();
+            if (document.getElementById('detailPanel')?.classList.contains('open')) openDetail(id);
+          }
+        });
+      } else {
+        updateComplaintStatus(id, 'resolved', '', capturedPhotoBlob).then(() => {
+          capturedPhotoBlob = null;
+          if (typeof toast !== 'undefined') toast.success(`Complaint #${id} marked resolved!`);
+          loadQueue();
+          if (document.getElementById('detailPanel')?.classList.contains('open')) openDetail(id);
+        });
+      }
+    }
+
+    async function acceptComplaint(id) {
+      await updateComplaintStatus(id, 'in_progress');
+      if (typeof toast !== 'undefined') toast.success(`Complaint #${id} accepted into active progress!`);
+      loadQueue();
+      if (document.getElementById('detailPanel')?.classList.contains('open')) openDetail(id);
+    }
+
+    async function openDetail(id) {
+      const panel = document.getElementById('detailPanel');
+      const content = document.getElementById('detailContent');
+      if (!panel || !content) return;
+      panel.classList.add('open');
+      content.innerHTML = `<div style="text-align: center; padding: 40px 0;">
+        <div class="spinner" style="margin: 0 auto 12px auto;"></div>
+        <p style="color: var(--text-tertiary); font-size: 0.85rem;">Loading complaint details...</p>
+      </div>`;
+      try {
+        const res = await getComplaintById(id);
+        const c = res.complaint || res.data || res;
+        if (!c) throw new Error('Complaint not found');
+        const trackingId = c.trackingId || c._id || c.id || id;
+        const sev = getSeverityConfig(c.severity);
+        const stat = getStatusConfig(c.status);
+        const address = c.address || c.location?.address || (typeof c.location === 'string' ? c.location : '') || 'GPS Location Pinned';
+        const repCount = c.repetitionCount || 1;
+        content.innerHTML = `<div style="display: flex; flex-direction: column; gap: 16px;">
+          ${c.beforeImage || c.image ? `<div style="width: 100%; height: 200px; border-radius: var(--radius-md); overflow: hidden; background: var(--bg-secondary);">
+            <img src="${c.beforeImage || c.image}" style="width: 100%; height: 100%; object-fit: cover;">
+          </div>` : ''}
+          <div>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px;">
+              <span class="badge" style="background: ${sev.color}20; color: ${sev.color}; font-weight: 700; font-size: 0.75rem;">
+                <span class="material-symbols-outlined" style="font-size: 13px; margin-right: 3px;">${sev.icon}</span>${sev.label} Priority
+              </span>
+              <span class="badge" style="background: rgba(107,114,128,0.12); color: var(--text-secondary); font-size: 0.75rem;">${c.category || 'General'}</span>
+              ${repCount > 1 ? `<span class="badge" style="background: rgba(245,158,11,0.15); color: var(--warning-amber); font-weight: 700; font-size: 0.75rem;">🔥 ${repCount} Nearby Reports (100m)</span>` : ''}
+            </div>
+            <h3 style="font-weight: 800; font-size: 1.1rem; color: var(--text-primary); margin-bottom: 6px; line-height: 1.3;">${c.title || 'Civic Complaint'}</h3>
+            <p style="color: var(--text-tertiary); font-size: 0.78rem; font-family: 'JetBrains Mono', monospace;">Tracking ID: ${trackingId}</p>
+          </div>
+          <div style="padding: 12px; background: rgba(148, 163, 184, 0.05); border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; display: block; margin-bottom: 4px;">Location</label>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: flex-start; gap: 6px; margin: 0;">
+              <span class="material-symbols-outlined" style="font-size: 16px; color: var(--primary-blue); margin-top: 2px;">location_on</span>
+              ${address}
+            </p>
+          </div>
+          <div style="padding: 12px; background: rgba(59,130,246,0.05); border-radius: var(--radius-md); border: 1px dashed var(--primary-blue);">
+            <label style="font-size: 0.75rem; font-weight: 700; color: var(--primary-blue); text-transform: uppercase; display: block; margin-bottom: 8px;">
+              <span class="material-symbols-outlined" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">photo_camera</span> After Photo (Evidence)
+            </label>
+            <div id="detailCameraContainer" style="border-radius: var(--radius-md); overflow: hidden; background: var(--bg-primary); border: 2px dashed var(--border-subtle); min-height: 140px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; position: relative;">
+              <video id="detailCameraPreview" autoplay playsinline style="width: 100%; display: none; border-radius: var(--radius-md);"></video>
+              <canvas id="detailCameraCanvas" style="display: none;"></canvas>
+              <img id="detailCapturedPhoto" style="width: 100%; display: none; border-radius: var(--radius-md); object-fit: cover; max-height: 200px;">
+              <div id="detailCameraPlaceholder" style="text-align: center; padding: 16px; display: flex; flex-direction: column; align-items: center;">
+                <span class="material-symbols-outlined" style="font-size: 32px; color: var(--text-tertiary);">photo_camera</span>
+                <p style="color: var(--text-tertiary); font-size: 0.8rem; margin-top: 6px;">Capture or upload after-photo evidence</p>
+                <div style="display: flex; gap: 6px; margin-top: 10px;">
+                  <button type="button" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="startDetailCamera()">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">camera_alt</span> Camera
+                  </button>
+                  <label class="btn btn-ghost" style="padding: 6px 12px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">upload</span> Upload
+                    <input type="file" accept="image/*" style="display: none;" onchange="handleDetailFileUpload(event)">
+                  </label>
+                </div>
+              </div>
+              <div id="detailCameraActions" style="display: none; gap: 8px; position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); z-index: 2;">
+                <button type="button" class="btn btn-primary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="captureDetailPhoto()">
+                  <span class="material-symbols-outlined" style="font-size: 16px;">camera</span> Capture
+                </button>
+              </div>
+              <button type="button" id="detailRetakeBtn" class="btn btn-ghost" style="display: none; margin-top: 4px; padding: 4px 10px; font-size: 0.8rem;" onclick="retakeDetailPhoto()">
+                <span class="material-symbols-outlined" style="font-size: 16px;">refresh</span> Retake
+              </button>
+            </div>
+            ${c.afterImage ? `<div style="margin-top: 8px;">
+              <label style="font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); display: block; margin-bottom: 4px;">Previously Uploaded:</label>
+              <img src="${c.afterImage}" style="width: 100%; max-height: 160px; object-fit: cover; border-radius: var(--radius-md);">
+            </div>` : ''}
+          </div>
+          ${c.description ? `<div>
+            <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; display: block; margin-bottom: 4px;">Description</label>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; white-space: pre-wrap;">${c.description}</p>
+          </div>` : ''}
+          <div style="margin-top: 12px;">
+            ${renderOfficerActionButtons(trackingId, c.status)}
+          </div>
+        </div>`;
+      } catch (err) {
+        console.error('Error in openDetail:', err);
+        content.innerHTML = `<div style="text-align: center; padding: 40px 0; color: var(--danger-red);">
+          <p style="font-weight: 600;">Failed to load complaint details.</p>
+          <p style="font-size: 0.8rem; color: var(--text-tertiary); margin-top: 4px;">ID: ${id}</p>
+        </div>`;
+      }
+    }
+
+    let detailCameraStream = null;
+    let detailCapturedBlob = null;
+
+    function handleDetailFileUpload(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      detailCapturedBlob = file;
+      const img = document.getElementById('detailCapturedPhoto');
+      img.src = URL.createObjectURL(file);
+      img.style.display = 'block';
+      document.getElementById('detailCameraPlaceholder').style.display = 'none';
+      document.getElementById('detailCameraActions').style.display = 'none';
+      document.getElementById('detailCameraPreview').style.display = 'none';
+      document.getElementById('detailRetakeBtn').style.display = 'inline-flex';
+    }
+
+    async function startDetailCamera() {
+      const video = document.getElementById('detailCameraPreview');
+      const placeholder = document.getElementById('detailCameraPlaceholder');
+      const actions = document.getElementById('detailCameraActions');
+      try {
+        detailCameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 1280, height: 720 } });
+        video.srcObject = detailCameraStream;
+        video.style.display = 'block';
+        placeholder.style.display = 'none';
+        actions.style.display = 'flex';
+        await video.play();
+      } catch (err) {
+        console.error('Camera access denied:', err);
+        if (typeof toast !== 'undefined') toast.error('Camera access denied.');
+      }
+    }
+
+    function captureDetailPhoto() {
+      const video = document.getElementById('detailCameraPreview');
+      const canvas = document.getElementById('detailCameraCanvas');
+      const img = document.getElementById('detailCapturedPhoto');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      canvas.toBlob((blob) => {
+        detailCapturedBlob = new File([blob], `after_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        img.src = URL.createObjectURL(detailCapturedBlob);
+        img.style.display = 'block';
+        video.style.display = 'none';
+        if (detailCameraStream) {
+          detailCameraStream.getTracks().forEach(t => t.stop());
+          detailCameraStream = null;
+        }
+        document.getElementById('detailCameraActions').style.display = 'none';
+        document.getElementById('detailRetakeBtn').style.display = 'inline-flex';
+      }, 'image/jpeg', 0.92);
+    }
+
+    function retakeDetailPhoto() {
+      detailCapturedBlob = null;
+      document.getElementById('detailCapturedPhoto').style.display = 'none';
+      document.getElementById('detailRetakeBtn').style.display = 'none';
+      document.getElementById('detailCameraPlaceholder').style.display = 'flex';
+    }
+
+    function closePanel() { document.getElementById('detailPanel')?.classList.remove('open'); }
 
     document.addEventListener('DOMContentLoaded', () => {
       requireAuth();
       document.getElementById('sidebarContainer').innerHTML = renderSidebar('dashboard');
-      document.getElementById('topnavContainer').innerHTML = renderTopNav('Complaint Queue');
+      document.getElementById('topnavContainer').innerHTML = renderTopNav('Officer Dashboard');
       loadQueue();
     });
   </script>

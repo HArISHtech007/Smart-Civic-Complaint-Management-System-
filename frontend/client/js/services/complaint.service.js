@@ -17,7 +17,7 @@ async function getAllComplaints(params = {}) {
   const localComplaints = JSON.parse(localStorage.getItem('civic_user_complaints') || '[]');
 
   const map = new Map();
-  [...serverComplaints, ...localComplaints].forEach(c => {
+  [...localComplaints, ...serverComplaints].forEach(c => {
     const id = c._id || c.id || c.trackingId;
     if (id && !map.has(id)) {
       map.set(id, c);
@@ -68,12 +68,33 @@ async function getComplaintById(id) {
   throw new Error(`Complaint ${id} not found`);
 }
 
-async function updateComplaintStatus(id, status, notes) {
+const STATUS_MAP = {
+  submitted: 'Pending',
+  under_review: 'Under Review',
+  assigned: 'Assigned',
+  in_progress: 'In Progress',
+  resolved: 'Completed',
+  completed: 'Completed',
+  closed: 'Closed',
+  rejected: 'Rejected'
+};
+
+async function updateComplaintStatus(id, status, notes, afterImage) {
+  const backendStatus = STATUS_MAP[status] || status;
+  const formData = new FormData();
+  formData.append('status', backendStatus);
+  if (notes) formData.append('notes', notes);
+  if (afterImage) {
+    formData.append('afterImage', afterImage);
+  }
   try {
-    const res = await api.patch(`/complaints/${id}/status`, { status, notes });
+    const res = await api.put(`/complaints/${id}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
     updateLocalStorageStatus(id, status);
     return res.data;
   } catch (err) {
+    console.warn('Backend status update failed, saving locally:', err);
     updateLocalStorageStatus(id, status);
     return { success: true };
   }

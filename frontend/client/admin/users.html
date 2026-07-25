@@ -157,10 +157,20 @@
             <div>
               <label style="font-size: 0.8rem; color: var(--text-tertiary); display: block; margin-bottom: 6px;">Role</label>
               <select id="newRole" class="input" style="width: 100%;">
-                <option value="citizen" ${currentRole === 'citizen' ? 'selected' : ''}>Citizen</option>
-                <option value="officer" ${currentRole === 'officer' ? 'selected' : ''}>Field Officer</option>
                 <option value="head_officer" ${currentRole === 'head_officer' ? 'selected' : ''}>Head Officer</option>
                 <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>Admin</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 0.8rem; color: var(--text-tertiary); display: block; margin-bottom: 6px;">Department Selection</label>
+              <select id="newDepartment" class="input" style="width: 100%;">
+                <option value="Roads & Highways">Roads & Highways Department</option>
+                <option value="Solid Waste Management">Solid Waste Management</option>
+                <option value="Water Supply & Drainage">Water Supply & Drainage Board</option>
+                <option value="Street Lighting">Street Lighting Department</option>
+                <option value="Parks & Horticulture">Parks & Horticulture Department</option>
+                <option value="Town Planning">Town Planning Department</option>
+                <option value="General Administration">General Administration</option>
               </select>
             </div>
           </div>`,
@@ -171,16 +181,17 @@
           const phone = document.getElementById('newPhone').value;
           const password = document.getElementById('newPwd').value;
           const role = document.getElementById('newRole').value;
+          const department = document.getElementById('newDepartment').value;
 
           if (!name || !email) {
             toast.error('Please enter name and email');
             return;
           }
 
-          await createUser({ name, email, phone, password, role });
-          toast.success(`User ${name} created!`);
+          await createUser({ name, email, phone, password, role, department });
+          toast.success(`User "${name}" created successfully!`);
           close();
-          loadUsers();
+          switchTab(role);
         }
       });
     }

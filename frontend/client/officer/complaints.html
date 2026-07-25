@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Department Complaints — Civic Voice</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,0" rel="stylesheet">
+  <link rel="stylesheet" href="../css/variables.css">
+  <link rel="stylesheet" href="../css/global.css">
+  <link rel="stylesheet" href="../css/animations.css">
+  <link rel="stylesheet" href="../css/responsive.css">
+  <style>
+    .dashboard-layout { display: flex; min-height: 100vh; background-color: var(--bg-primary); }
+    .main-content { margin-left: var(--sidebar-width); flex: 1; min-width: 0; }
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th { text-align: left; padding: 14px 16px; font-size: 0.8rem; color: var(--text-tertiary); font-weight: 700; border-bottom: 1px solid var(--border-subtle); text-transform: uppercase; letter-spacing: 0.05em; }
+    .data-table td { padding: 14px 16px; font-size: 0.85rem; border-bottom: 1px solid var(--border-subtle); vertical-align: middle; }
+    .data-table tr:hover td { background: rgba(148,163,184,0.03); }
+    @media (max-width: 768px) { .sidebar { transform: translateX(-100%); } .main-content { margin-left: 0; } .table-wrap { overflow-x: auto; } }
+  </style>
+</head>
+<body>
+  <div class="dashboard-layout">
+    <div id="sidebarContainer"></div>
+    <div class="main-content">
+      <div id="topnavContainer"></div>
+      <div style="padding: 32px; max-width: 1400px; margin: 0 auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+          <div>
+            <h1 style="font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em;">Department Complaints</h1>
+            <p style="color: var(--text-secondary); font-size: 0.88rem; margin-top: 2px;">Assigned maintenance and civic issues for your department.</p>
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+            <input type="text" class="input" placeholder="Search complaints..." style="width: 220px; padding: 10px 14px; font-size: 0.85rem;" id="searchInput" oninput="applyFilters()">
+            <select class="input" style="width: auto; padding: 10px 14px; font-size: 0.85rem;" id="filterStatus" onchange="applyFilters()">
+              <option value="">All Status</option>
+              <option value="submitted">Submitted / Pending</option>
+              <option value="in_progress">In Progress</option>
+              <option value="resolved">Resolved</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card" style="overflow: hidden; border: 1px solid var(--border-subtle);">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Tracking ID</th>
+                  <th>Issue Details</th>
+                  <th>Category</th>
+                  <th>Severity</th>
+                  <th>Status</th>
+                  <th>Reported Date</th>
+                  <th style="text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="complaintTableBody">
+                <tr><td colspan="7" style="text-align: center; padding: 40px; color: var(--text-tertiary);">Loading department complaints...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="../js/api/index.js"></script>
+  <script src="../js/services/auth.service.js"></script>
+  <script src="../js/services/complaint.service.js"></script>
+  <script src="../js/utils/constants.js"></script>
+  <script src="../js/components/sidebar.js"></script>
+  <script src="../js/components/modal.js"></script>
+  <script src="../js/components/toast.js"></script>
+  <script>
+    if (!requireAuth()) { window.location.href = '/login.html'; }
+    let rawComplaints = [];
+
+    function isSameDepartment(officerDept, complaintDept) {
+      if (!officerDept || officerDept === '' || officerDept.toLowerCase().includes('general')) return true;
+      const o = officerDept.toLowerCase().trim();
+      const c = (complaintDept || '').toLowerCase().trim();
+
+      if (o.includes('road') && (c.includes('road') || c.includes('pothole'))) return true;
+      if ((o.includes('waste') || o.includes('sanitat')) && (c.includes('waste') || c.includes('sanitat') || c.includes('garbage'))) return true;
+      if ((o.includes('water') || o.includes('drain')) && (c.includes('water') || c.includes('drain') || c.includes('leak'))) return true;
+      if ((o.includes('light') || o.includes('electric')) && (c.includes('light') || c.includes('electric') || c.includes('lamp'))) return true;
+      if ((o.includes('tree') || o.includes('park')) && (c.includes('tree') || c.includes('park'))) return true;
+      if ((o.includes('town') || o.includes('plan')) && (c.includes('town') || c.includes('plan'))) return true;
+
+      return o.includes(c) || c.includes(o);
+    }
+
+    async function loadOfficerComplaints() {
+      const tbody = document.getElementById('complaintTableBody');
+      try {
+        const user = getUser() || {};
+        const officerDept = user.department || localStorage.getItem('civic_officer_dept') || '';
+
+        const data = await getAllComplaints();
+        const allList = data.complaints || data.data || (Array.isArray(data) ? data : []);
+
+        rawComplaints = allList.filter(c => isSameDepartment(officerDept, c.department));
+        applyFilters();
+      } catch (err) {
+        console.error('Error loading complaints:', err);
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: var(--danger-red);">Failed to load department complaints.</td></tr>';
+      }
+    }
+
+    function applyFilters() {
+      const tbody = document.getElementById('complaintTableBody');
+      const search = (document.getElementById('searchInput').value || '').toLowerCase();
+      const statusFilter = (document.getElementById('filterStatus').value || '').toLowerCase();
+
+      const filtered = rawComplaints.filter(c => {
+        const title = (c.title || c.description || '').toLowerCase();
+        const trackingId = (c._id || c.id || c.trackingId || '').toLowerCase();
+        const status = (c.status || '').toLowerCase();
+
+        const matchSearch = !search || title.includes(search) || trackingId.includes(search);
+        const matchStatus = !statusFilter || status.includes(statusFilter);
+
+        return matchSearch && matchStatus;
+      });
+
+      if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: var(--text-tertiary);">No complaints found for your department.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(c => {
+        const id = c.trackingId || c._id || c.id || 'CIV-00000';
+        const displayId = id.length > 16 ? id.substring(0, 14) + '...' : id;
+        const sev = getSeverityConfig(c.severity);
+        const stat = getStatusConfig(c.status);
+        const repTag = (c.repetitionCount && c.repetitionCount > 1) ? `<span class="badge" style="background: rgba(245,158,11,0.15); color: var(--warning-amber); font-size: 0.72rem; margin-left: 6px;">🔥 ${c.repetitionCount} Reports</span>` : '';
+
+        return `<tr>
+          <td class="mono" style="font-weight: 600; color: var(--primary-blue);">${displayId}</td>
+          <td>
+            <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 2px;">${c.title || 'Civic Issue'}</div>
+            <div style="color: var(--text-tertiary); font-size: 0.78rem; display: flex; align-items: center; gap: 4px;">
+              <span class="material-symbols-outlined" style="font-size: 13px;">location_on</span>
+              ${c.address || c.location?.address || (typeof c.location === 'string' ? c.location : '') || 'Coordinates Pinned'}
+            </div>
+          </td>
+          <td><span class="badge" style="background: rgba(107,114,128,0.12); color: var(--text-secondary); font-size: 0.75rem;">${c.category || 'General'}</span></td>
+          <td><span class="badge" style="background: ${sev.color}15; color: ${sev.color}; font-weight: 600; font-size: 0.75rem;"><span class="material-symbols-outlined" style="font-size: 12px; margin-right: 3px;">${sev.icon}</span>${sev.label}</span></td>
+          <td>
+            <span class="badge" style="background: ${stat.color}15; color: ${stat.color}; font-weight: 600; font-size: 0.75rem;">
+              <span class="material-symbols-outlined" style="font-size: 12px; margin-right: 3px;">${stat.icon}</span>${stat.label}
+            </span>
+            ${repTag}
+          </td>
+          <td style="color: var(--text-tertiary); font-size: 0.8rem;">${formatDate(c.createdAt)}</td>
+          <td style="text-align: right;">
+            <button class="btn btn-success" style="padding: 6px 12px; font-size: 0.78rem; font-weight: 600;" onclick="acceptComplaint('${id}')">
+              <span class="material-symbols-outlined" style="font-size: 16px;">check</span> Accept & Start
+            </button>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    async function acceptComplaint(id) {
+      await updateComplaintStatus(id, 'in_progress');
+      toast.success(`Complaint #${id} accepted into active progress!`);
+      loadOfficerComplaints();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      requireAuth();
+      document.getElementById('sidebarContainer').innerHTML = renderSidebar('complaints');
+      document.getElementById('topnavContainer').innerHTML = renderTopNav('Department Complaints');
+      loadOfficerComplaints();
+    });
+  </script>
+</body>
+</html>

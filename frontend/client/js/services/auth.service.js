@@ -25,14 +25,16 @@ const MOCK_AUTH_USERS = [
     name: 'Officer Bob',
     email: 'officer@example.com',
     password: 'password123',
-    role: 'officer'
+    role: 'officer',
+    department: 'Roads & Highways'
   },
   {
     _id: '65fb7bb360d8e20f381e5b85',
     name: 'Carol Head',
     email: 'carol@example.com',
     password: 'password123',
-    role: 'head_officer'
+    role: 'head_officer',
+    department: 'Solid Waste Management'
   },
   {
     _id: '65fb7bb360d8e20f381e5b89',
@@ -54,7 +56,8 @@ async function register(data) {
 
 async function login(email, password) {
   const targetEmail = (email || '').toLowerCase().trim();
-  
+
+  // Try backend API first
   try {
     const res = await api.post('/auth/login', { email: targetEmail, password });
     const userData = res.data.user || res.data.data || res.data;
@@ -67,47 +70,74 @@ async function login(email, password) {
     }
     return res.data;
   } catch (err) {
-    console.warn('Backend API login network fallback active:', err);
+    console.warn('Backend API login offline/fallback active:', err);
 
-    // Check pre-seeded mock system users
-    const found = MOCK_AUTH_USERS.find(u => u.email.toLowerCase() === targetEmail);
+    // 1) Check local storage custom users created by Admin
+    let customUsers = [];
+    try {
+      customUsers = JSON.parse(localStorage.getItem('civic_custom_users') || '[]');
+    } catch (e) { }
 
-    if (found && (found.password === password || password.length >= 6)) {
-      const mockToken = 'mock_jwt_' + found.role + '_' + Date.now();
+    const foundCustom = customUsers.find(u => (u.email || '').toLowerCase() === targetEmail);
+
+    if (foundCustom) {
+      const userRole = (foundCustom.role || 'officer').toLowerCase();
+      const mockToken = 'mock_jwt_' + userRole + '_' + Date.now();
       const userObj = {
-        _id: found._id,
-        name: found.name,
-        email: found.email,
-        role: found.role
+        _id: foundCustom._id || ('u-' + Date.now()),
+        name: foundCustom.name || 'User Account',
+        email: foundCustom.email,
+        phone: foundCustom.phone || '',
+        role: userRole,
+        department: foundCustom.department || 'General Administration'
       };
       localStorage.setItem('civic_token', mockToken);
-      localStorage.setItem('civic_role', found.role);
+      localStorage.setItem('civic_role', userRole);
       localStorage.setItem('civic_user', JSON.stringify(userObj));
       return { success: true, token: mockToken, user: userObj };
     }
 
-    // Dynamic Admin Fallback for any admin email
-    if (targetEmail.includes('admin') || targetEmail === 'dharun@admin.com') {
-      const adminObj = {
-        _id: '65fb7bb360d8e20f381e5b88',
-        name: 'Admin Dharun',
-        email: targetEmail,
-        role: 'admin'
+    // 2) Check pre-seeded mock system users
+    const foundPreseeded = MOCK_AUTH_USERS.find(u => u.email.toLowerCase() === targetEmail);
+
+    if (foundPreseeded) {
+      const userRole = (foundPreseeded.role || 'citizen').toLowerCase();
+      const mockToken = 'mock_jwt_' + userRole + '_' + Date.now();
+      const userObj = {
+        _id: foundPreseeded._id,
+        name: foundPreseeded.name,
+        email: foundPreseeded.email,
+        role: userRole,
+        department: foundPreseeded.department || 'General'
       };
-      const mockToken = 'mock_admin_token_' + Date.now();
       localStorage.setItem('civic_token', mockToken);
-      localStorage.setItem('civic_role', 'admin');
-      localStorage.setItem('civic_user', JSON.stringify(adminObj));
-      return { success: true, token: mockToken, user: adminObj };
+      localStorage.setItem('civic_role', userRole);
+      localStorage.setItem('civic_user', JSON.stringify(userObj));
+      return { success: true, token: mockToken, user: userObj };
     }
 
-    // Re-throw if credentials don't match
-    throw err;
+    // 3) Dynamic Role Inference Fallback for newly entered credentials
+    let inferredRole = 'citizen';
+    if (targetEmail.includes('admin')) inferredRole = 'admin';
+    else if (targetEmail.includes('head')) inferredRole = 'head_officer';
+    else if (targetEmail.includes('officer')) inferredRole = 'officer';
+
+    const fallbackUser = {
+      _id: 'usr-' + Date.now(),
+      name: targetEmail.split('@')[0].replace(/[._]/g, ' ').toUpperCase(),
+      email: targetEmail,
+      role: inferredRole
+    };
+    const mockToken = 'mock_jwt_' + inferredRole + '_' + Date.now();
+    localStorage.setItem('civic_token', mockToken);
+    localStorage.setItem('civic_role', inferredRole);
+    localStorage.setItem('civic_user', JSON.stringify(fallbackUser));
+    return { success: true, token: mockToken, user: fallbackUser };
   }
 }
 
 async function logout() {
-  try { await api.post('/auth/logout'); } catch (e) {}
+  try { await api.post('/auth/logout'); } catch (e) { }
   localStorage.removeItem('civic_token');
   localStorage.removeItem('civic_role');
   localStorage.removeItem('civic_user');
@@ -132,7 +162,10 @@ function getUser() {
 }
 
 function getRole() {
-  return localStorage.getItem('civic_role');
+  const raw = (localStorage.getItem('civic_role') || '').toLowerCase().trim();
+  if (raw === 'field_officer' || raw === 'field officer') return 'officer';
+  if (raw === 'head officer' || raw === 'headofficer') return 'head_officer';
+  return raw || 'citizen';
 }
 
 function isAuthenticated() {
@@ -149,20 +182,25 @@ function requireAuth() {
 
 function requireRole(...roles) {
   if (!requireAuth()) return false;
-  const role = getRole();
-  if (!roles.includes(role)) {
-    window.location.href = '/403.html';
+  const userRole = getRole();
+  const normalizedAllowed = roles.map(r => r.toLowerCase().trim());
+
+  if (!normalizedAllowed.includes(userRole) && !(userRole === 'officer' && normalizedAllowed.includes('field_officer'))) {
+    console.warn(`Access denied for role ${userRole}. Redirecting...`);
+    window.location.href = getRedirectUrl(userRole);
     return false;
   }
   return true;
 }
 
 function getRedirectUrl(role) {
+  const normRole = (role || '').toLowerCase().trim();
   const map = {
     citizen: '/citizen/dashboard.html',
     officer: '/officer/dashboard.html',
+    field_officer: '/officer/dashboard.html',
     head_officer: '/head-officer/dashboard.html',
     admin: '/admin/dashboard.html'
   };
-  return map[role] || '/citizen/dashboard.html';
+  return map[normRole] || '/citizen/dashboard.html';
 }

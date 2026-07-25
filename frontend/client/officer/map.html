@@ -49,18 +49,6 @@
               </select>
             </div>
           </div>
-          <div class="card glass">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span class="material-symbols-outlined" style="font-size: 18px; color: var(--primary-blue);">category</span>
-              <select id="categoryFilter" onchange="loadMapData()" style="background: transparent; border: none; color: var(--text-primary); font-size: 0.85rem; outline: none;">
-                <option value="">All Categories</option>
-                <option value="Pothole">Pothole</option>
-                <option value="Garbage">Garbage</option>
-                <option value="Water Leakage">Water Leakage</option>
-                <option value="Street Light">Street Light</option>
-              </select>
-            </div>
-          </div>
         </div>
         <div class="card glass legend">
           <p style="font-weight: 600; font-size: 0.8rem; margin-bottom: 6px; color: var(--text-primary);">Severity</p>
@@ -127,13 +115,11 @@
       if (!markersGroup) return;
       markersGroup.clearLayers();
       const severityFilter = document.getElementById('severityFilter').value;
-      const categoryFilter = document.getElementById('categoryFilter').value;
 
       let complaints = [];
       try {
         const params = {};
         if (severityFilter) params.severity = severityFilter;
-        if (categoryFilter) params.category = categoryFilter;
         const data = await getAllComplaints(params);
         complaints = data.complaints || data.data || data || [];
       } catch (err) {
@@ -141,8 +127,7 @@
       }
 
       let visible = complaints;
-      if (severityFilter) visible = visible.filter(c => c.severity === severityFilter);
-      if (categoryFilter) visible = visible.filter(c => c.category === categoryFilter);
+      if (severityFilter) visible = visible.filter(c => (c.severity || '').toLowerCase() === severityFilter.toLowerCase());
 
       visible.forEach(c => {
         const lat = c.lat || (c.location?.coordinates?.[1]);
